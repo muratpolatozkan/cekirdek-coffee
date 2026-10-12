@@ -2,8 +2,17 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Çekirdek Coffee</title>
+<meta name="description" content="Mahalle arasında küçük bir 3. dalga kahveci aç, caddenin en sevilen dükkanı yap.">
+<meta name="theme-color" content="#1f4f3e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Çekirdek">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>
   :root {
     --bg: #efe7dc;
@@ -18,7 +27,8 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; user-select: none; -webkit-user-select: none; }
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; user-select: none; -webkit-user-select: none;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; overscroll-behavior: none; }
   canvas { display: block; touch-action: none; }
   button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
     border-radius: 10px; padding: 7px 11px; }
@@ -28,7 +38,7 @@
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   button.primary:hover:not(:disabled) { background: #185a44; }
 
-  #top { position: fixed; top: 10px; left: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+  #top { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); right: calc(10px + env(safe-area-inset-right)); display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
   #hud, #controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   #controls { pointer-events: auto; align-self: flex-start; }
   #controls button { padding: 6px 10px; font-size: 13px; }
@@ -40,16 +50,36 @@
   .chip.money.neg { color: var(--danger); }
   .low { color: var(--danger); font-weight: 700; }
 
-  #tracker { position: fixed; top: 10px; right: 10px; width: 250px; background: var(--panel); border: 1px solid var(--line);
+  #tracker { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); width: 250px; background: var(--panel); border: 1px solid var(--line);
     border-radius: 14px; padding: 10px 12px; font-size: 12.5px; box-shadow: 0 2px 10px rgba(0,0,0,.08); pointer-events: none; }
   #tracker b { font-size: 13px; }
   #tracker .g { padding: 3px 0; color: var(--muted); }
   #tracker .g span { color: var(--ink); }
   @media (max-width: 900px) { #tracker { display: none; } }
+  @media (max-width: 640px) {
+    #top { gap: 5px; }
+    #hud, #controls { gap: 4px; }
+    .chip { font-size: 12px; padding: 4px 8px; border-radius: 10px; }
+    .chip.brand { display: none; }
+    #controls button { padding: 5px 8px; font-size: 12px; }
+    #controls .lbl { display: none; }
+    #controls button[data-tab] { font-size: 15px; padding: 3px 7px; }
+    .sep { width: 2px; }
+    #shop { padding: 5px; gap: 4px; border-radius: 14px; }
+    .card { min-width: 58px; padding: 4px; }
+    .card .ic { font-size: 18px; }
+    .card .nm { font-size: 10px; }
+    .card .pr { font-size: 9.5px; }
+    #panel { right: calc(6px + env(safe-area-inset-right)); left: calc(6px + env(safe-area-inset-left)); width: auto; max-width: none; padding: 10px 12px; }
+    #hint { bottom: calc(80px + env(safe-area-inset-bottom)); font-size: 12px; }
+    #hint .lbl { display: none; }
+    #hint button { padding: 6px 12px; font-size: 15px; }
+    #toast { font-size: 13px; }
+  }
 
-  #panel { position: fixed; left: 10px; width: 360px; max-width: calc(100vw - 20px); background: var(--panel);
+  #panel { position: fixed; left: calc(10px + env(safe-area-inset-left)); width: 360px; max-width: calc(100vw - 20px); background: var(--panel);
     border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: none; box-shadow: 0 6px 24px rgba(0,0,0,.14);
-    overflow: auto; font-size: 13px; }
+    overflow: auto; font-size: 13px; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
   #panel h3 { margin: 10px 0 6px; font-size: 14px; }
   #panel h3:first-child { margin-top: 0; }
   #panel h3 small { font-weight: 400; color: var(--muted); }
@@ -68,7 +98,7 @@
   .big { font-size: 30px; font-weight: 800; }
   .good { color: var(--accent); } .bad { color: var(--danger); }
 
-  #shop { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; gap: 5px; background: var(--panel);
+  #shop { position: fixed; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 5px; background: var(--panel);
     padding: 6px; border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 4px 18px rgba(0,0,0,.1);
     max-width: calc(100vw - 20px); overflow-x: auto; }
   .card { display: flex; flex-direction: column; align-items: center; min-width: 70px; padding: 5px 6px; gap: 1px; }
@@ -77,8 +107,12 @@
   .card .pr { font-size: 10.5px; opacity: .7; }
   .shopsep { width: 1px; background: var(--line); margin: 4px 2px; flex: none; }
 
-  #hint { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); background: var(--ink); color: #fff;
-    padding: 6px 12px; border-radius: 8px; font-size: 13px; display: none; white-space: nowrap; }
+  #hint { position: fixed; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: #fff;
+    padding: 6px 6px 6px 12px; border-radius: 10px; font-size: 13px; display: none; align-items: center; gap: 8px;
+    max-width: calc(100vw - 20px); }
+  #hintText { white-space: nowrap; }
+  #hint button { padding: 5px 10px; font-size: 13px; background: rgba(255,255,255,.15); color: #fff; border-color: rgba(255,255,255,.25); white-space: nowrap; }
+  #hint button:hover:not(:disabled) { background: rgba(255,255,255,.28); }
   #toast { position: fixed; left: 50%; top: 96px; transform: translateX(-50%); background: var(--ink); color: #fff;
     padding: 9px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none;
     max-width: min(560px, calc(100vw - 32px)); text-align: center; line-height: 1.4; }
@@ -125,20 +159,20 @@
     <button data-speed="2">2×</button>
     <button data-speed="4">4×</button>
     <span class="sep"></span>
-    <button data-tab="staff">👥 Personel</button>
-    <button data-tab="menu">📋 Menü</button>
-    <button data-tab="stock">📦 Stok</button>
-    <button data-tab="upgrades">⬆️ Geliştir</button>
-    <button data-tab="street">🏠 Cadde</button>
-    <button data-tab="reviews">💬 Yorumlar</button>
-    <button data-tab="goals">🎯 Hedefler</button>
+    <button data-tab="staff" title="Personel">👥<span class="lbl"> Personel</span></button>
+    <button data-tab="menu" title="Menü">📋<span class="lbl"> Menü</span></button>
+    <button data-tab="stock" title="Stok">📦<span class="lbl"> Stok</span></button>
+    <button data-tab="upgrades" title="Geliştir">⬆️<span class="lbl"> Geliştir</span></button>
+    <button data-tab="street" title="Cadde">🏠<span class="lbl"> Cadde</span></button>
+    <button data-tab="reviews" title="Yorumlar">💬<span class="lbl"> Yorumlar</span></button>
+    <button data-tab="goals" title="Hedefler">🎯<span class="lbl"> Hedefler</span></button>
     <button data-tab="settings">⚙️</button>
   </div>
 </div>
 <div id="tracker"></div>
 <div id="panel"></div>
 <div id="shop"></div>
-<div id="hint"></div>
+<div id="hint"><span id="hintText"></span><button id="hintRot" title="Döndür (R)">↻<span class="lbl"> Döndür</span></button><button id="hintCancel">✕</button></div>
 <div id="toast"></div>
 <div id="modal"><div class="box" id="modalBox"></div></div>
 
@@ -295,7 +329,8 @@ function save() {
 // Sahne, kamera, ışık
 // =====================================================================
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
+renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH ? 1.5 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.prepend(renderer.domElement);
@@ -313,14 +348,14 @@ let camTarget = V(UW * 1.5, UD / 2 + 1);
 setCamTarget(camTarget.clone());
 camera.zoom = 1.25;
 function resize() {
-  const a = innerWidth / innerHeight, halfH = Math.max(6.2, 9 / a);
+  const a = innerWidth / innerHeight, halfH = Math.max(6.2, 5.6 / a);
   camera.left = -halfH * a; camera.right = halfH * a; camera.top = halfH; camera.bottom = -halfH;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   const top = document.getElementById('top');
   const panel = document.getElementById('panel');
   panel.style.top = (top.offsetHeight + 18) + 'px';
-  panel.style.maxHeight = `calc(100vh - ${top.offsetHeight + 120}px)`;
+  panel.style.maxHeight = Math.max(160, innerHeight - top.offsetHeight - (innerWidth <= 640 ? 110 : 125)) + 'px';
 }
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0xcdb79c, 1.6);
@@ -328,7 +363,7 @@ scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0dd, 2.2);
 sun.target.position.set(GW / 2, 0, UD / 2 + 2);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(IS_TOUCH ? 1024 : 2048, IS_TOUCH ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 16, bottom: -16, near: 1, far: 80 });
 sun.shadow.bias = -0.0006;
 scene.add(sun, sun.target);
@@ -1733,10 +1768,13 @@ function setMode(m, type) {
     ghost.traverse(o => { if (o.isMesh) { o.material = ghostMat; o.castShadow = false; } if (o.isLight) o.visible = false; });
     scene.add(ghost);
   }
-  const hint = $('hint');
-  hint.style.display = m === 'none' ? 'none' : 'block';
-  hint.textContent = m === 'build' ? `Tıkla: yerleştir · R: döndür · Esc: iptal${type === 'bar' ? ' · açık yeşil kare: müşteri sırası' : ''}`
-    : m === 'sell' ? 'Satmak için bir eşyaya tıkla (%50 iade) · Esc: iptal' : 'Taşımak istediğin eşyaya tıkla · Esc: iptal';
+  pendingTap = null;
+  $('hint').style.display = m === 'none' ? 'none' : 'flex';
+  $('hintRot').style.display = m === 'build' ? '' : 'none';
+  $('hintText').textContent = IS_TOUCH
+    ? (m === 'build' ? 'Dokun, sonra onayla' : m === 'sell' ? 'Seç, sonra onayla' : 'Eşyaya dokun')
+    : (m === 'build' ? `Tıkla: yerleştir · R: döndür${type === 'bar' ? ' · açık yeşil kare: müşteri sırası' : ''}`
+      : m === 'sell' ? 'Satmak için eşyaya tıkla (%50 iade)' : 'Taşımak istediğin eşyaya tıkla');
   updateHover(); refreshUI();
 }
 
@@ -1793,15 +1831,25 @@ function onClick() {
 }
 
 const cvs = renderer.domElement;
-let drag = null;
+let drag = null, pinch = null, pendingTap = null;
+const touches = new Map();
+const touchDist = () => { const [a, b] = [...touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
 cvs.addEventListener('contextmenu', e => e.preventDefault());
 cvs.addEventListener('pointerdown', e => {
   if (e.button === 2) { setMode('none'); return; }
-  drag = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false };
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
   cvs.setPointerCapture(e.pointerId);
+  if (touches.size === 2) { pinch = { d: touchDist(), zoom: camera.zoom }; drag = null; return; }
+  if (touches.size > 2) return;
+  drag = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false };
 });
 cvs.addEventListener('pointermove', e => {
-  lastPointer = e;
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && touches.size === 2) {
+    camera.zoom = clamp(pinch.zoom * touchDist() / pinch.d, 0.5, 3);
+    camera.updateProjectionMatrix(); return;
+  }
+  if (e.pointerType !== 'touch' || drag) lastPointer = e;
   if (drag) {
     if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true;
     if (drag.moved) {
@@ -1817,14 +1865,35 @@ cvs.addEventListener('pointermove', e => {
   }
   updateHover();
 });
-cvs.addEventListener('pointerup', e => { lastPointer = e; updateHover(); if (drag && !drag.moved) onClick(); drag = null; });
-cvs.addEventListener('pointerleave', () => { lastPointer = null; updateHover(); });
+function endPointer(e) {
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = null;
+  if (e.type === 'pointercancel') { drag = null; return; }
+  const tap = drag && !drag.moved; drag = null;
+  if (!tap) return;
+  lastPointer = e; updateHover();
+  // dokunmatikte yanlışlıkla yerleştirme/satma olmasın: ilk dokunuş önizler, aynı kareye ikinci dokunuş onaylar
+  if (e.pointerType === 'touch' && (mode === 'build' || mode === 'sell') && hover) {
+    if (!pendingTap || pendingTap.i !== hover.i || pendingTap.j !== hover.j) { pendingTap = { ...hover }; return; }
+    pendingTap = null;
+  }
+  onClick();
+}
+cvs.addEventListener('pointerup', endPointer);
+cvs.addEventListener('pointercancel', endPointer);
+cvs.addEventListener('pointerleave', e => { if (e.pointerType === 'touch') return; lastPointer = null; updateHover(); });
+$('hintRot').onclick = () => { buildRot = (buildRot + 1) % 4; updateHover(); };
+$('hintCancel').onclick = () => setMode('none');
 cvs.addEventListener('wheel', e => {
   e.preventDefault();
   camera.zoom = clamp(camera.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 0.5, 3);
   camera.updateProjectionMatrix(); updateHover();
 }, { passive: false });
-addEventListener('pointerdown', () => { userGesture = true; if (actx?.state === 'suspended') actx.resume(); }, true);
+addEventListener('pointerdown', () => {
+  userGesture = true;
+  if (S.sound && !actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (actx?.state === 'suspended') actx.resume();
+}, true);
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   if (e.key === 'Escape') setMode('none');
@@ -1896,6 +1965,11 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 addEventListener('beforeunload', save);
+addEventListener('pagehide', save);
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
