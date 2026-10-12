@@ -1,17 +1,20 @@
 # ☕ Çekirdek Coffee
 
-Mahalle arasında küçük bir 3. dalga kahveci açıp onu caddenin en sevilen dükkanına dönüştürdüğün izometrik bir tarayıcı oyunu.
+Mahalle arasında küçük bir 3. dalga kahveci açıp onu caddenin en sevilen dükkanına, sonra da bir zincire dönüştürdüğün izometrik bir tarayıcı oyunu.
 
 **Oyna:** https://muratpolatozkan.github.io/cekirdek-coffee/
 
 ## Oyun
 
-- Caddeden geçenler; puanın, atmosferin ve fiyatların uygunsa içeri girer
-- Barista ve komi işe al, eğit
-- Çekirdek ve süt stoğunu yönet, kendi çekirdeğini kavur
-- Menüyü genişlet, fiyatları belirle
-- Yandaki dükkanları kiralayıp duvarları yık, büyü
-- Gün sonu raporları, müşteri yorumları ve hedefler
+- **Cadde hayatı:** Yayalar, arabalar, kedi ve komşu dükkanlar. Caddeden geçenler puanına, atmosferine ve fiyatlarına bakıp içeri girer.
+- **Hava ve mevsimler:** Yağmurda cadde boşalır ama girenler uzun oturur. Sıcakta cold brew patlar. Gün sonunda yarının tahmini gelir.
+- **Rastgele olaylar:** Influencer ziyareti, sağlık denetimi, maç günü, elektrik kesintisi, sokak festivali ve kahve borsası.
+- **Müdavimler ve mahalle:** Adı ve hikayesi olan düzenli müşteriler, komşulardan gelen istekler ve sokağın köşesine açılan rakip kahveci.
+- **Kahvecilik:** Latte art mini oyunu, imza tarifler (Türk kahvesi, tahinli latte, salep…) ve tatlılık ayarı. Kendi kavurduğun çekirdek ve kavurma profili.
+- **Personel:** Barista ve komi işe al, eğit, zam yap. Yorgunluk, moral ve özel yetenekler var.
+- **Etkinlikler:** Akustik gece, tadım atölyesi, mutlu saat, kitap kulübü.
+- **Büyüme:** Yan dükkanları kiralayıp duvarları yık, teras aç. Kampüs, Moda ve Levent'te şube aç, sonra franchise yapıp kalıcı yıldızlarla baştan başla.
+- **Kişiselleştirme:** Duvar rengi, zemin, duvar dekorları, kendi tabelan ve logon. Fotoğraf modu ve lo-fi müzik.
 
 ## Telefona kurma
 
@@ -31,15 +34,30 @@ Telefonda tek parmakla kaydır, iki parmakla yakınlaştır. Eşya koyarken önc
 | Esc | İptal |
 | S / M | Sat / Taşı |
 | 1–9 | Eşya seç |
+| P | Fotoğraf çek |
 | Boşluk | Duraklat |
 | Sürükle / Tekerlek | Kaydır / Yakınlaştır |
 
-## Yerelde çalıştırma
+## Geliştirme
+
+Build adımı yok: tarayıcının kendi ES modülleri ve CDN'den Three.js kullanılıyor.
 
 ```bash
 python3 -m http.server 8642
 ```
 
-Sonra http://127.0.0.1:8642 adresini aç.
+Sonra http://127.0.0.1:8642 adresini aç. Adrese `?debug` eklersen konsolda `G` nesnesi açılır: `G.run(saniye)` simülasyonu hızlandırır, `G.reset()` kaydı siler.
 
-Three.js ile yapıldı. Tek dosya: `index.html`.
+```
+index.html, styles.css, sw.js, manifest.webmanifest
+src/
+  main.js        giriş noktası ve ana döngü
+  config.js      bütün oyun verisi (eşyalar, içecekler, mahalleler, olaylar…)
+  state.js       oyun durumu, kayıt ve eski kayıtları taşıma
+  audio.js       ses efektleri ve lo-fi müzik (WebAudio)
+  engine/        sahne ve kamera, malzemeler ve dokular, modeller, parçacıklar
+  world/         cadde ve mahalle temaları, dükkan birimleri, hava ve ışık
+  sim/           ızgara ve yol bulma, ekonomi, insanlar, personel, gün döngüsü,
+                 müdavimler, rakip, olaylar, görevler ve hedefler, şubeler
+  ui/            üst bilgi, paneller, pencereler, giriş, latte art, fotoğraf
+```
