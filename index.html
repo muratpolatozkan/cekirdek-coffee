@@ -318,7 +318,9 @@ try {
 } catch (e) { S = null; }
 if (!S) S = newState();
 
+let resetting = false;   // sıfırlarken sayfa kapanışındaki otomatik kayıt eski oyunu geri yazmasın
 function save() {
+  if (resetting) return;
   try {
     S.items = items.map(({ type, i, j, r }) => ({ type, i, j, r }));
     localStorage.setItem(SAVE_KEY, JSON.stringify(S));
@@ -1676,7 +1678,12 @@ const ACT = {
     toast('🔨 Duvar yıkıldı! Dükkanın büyüdü. Yeni alana eşya yerleştirebilirsin.', 4000);
   },
   sound() { S.sound = !S.sound; },
-  reset() { if (!confirm('Bütün ilerleme silinip oyun baştan başlasın mı?')) return; try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); },
+  reset(arg) {
+    if (arg !== 'force' && !confirm('Bütün ilerleme silinip oyun baştan başlasın mı?')) return;
+    resetting = true;
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    location.reload();
+  },
   startDay() { startDay(); },
   closeIntro() { S.introSeen = true; hideModal(); save(); },
 };
@@ -1723,7 +1730,7 @@ function showReport() {
     ${R.invest ? `<li>🛠️ Yatırım harcaması: ${fmt(R.invest)} (net kâra dahil değil)</li>` : ''}</ul>
     ${R.best ? `<p><b>Günün yorumu:</b> <span class="stars">${starStr(R.best.stars)}</span> “${R.best.text}”</p>` : ''}
     ${R.worst && R.worst !== R.best && R.worst.stars <= 2 ? `<p><b>En sert eleştiri:</b> <span class="stars">${starStr(R.worst.stars)}</span> “${R.worst.text}”</p>` : ''}`;
-  if (S.money < -3000) h += `<p class="bad"><b>💸 İflas ettin!</b> Borcun çok büyüdü. Baştan başlaman gerekiyor.</p><div class="actions"><button class="primary" data-act="reset">Baştan başla</button></div>`;
+  if (S.money < -3000) h += `<p class="bad"><b>💸 İflas ettin!</b> Borcun çok büyüdü. Baştan başlaman gerekiyor.</p><div class="actions"><button class="primary" data-act="reset" data-arg="force">Baştan başla</button></div>`;
   else h += `${S.money < 0 ? '<p class="bad">⚠️ Borçtasın! Giderlerini azalt ya da fiyatlarını gözden geçir.</p>' : ''}<div class="actions"><button class="primary" data-act="startDay">☀️ Yeni güne başla</button></div>`;
   showModal(h);
 }
