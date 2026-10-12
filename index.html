@@ -1,0 +1,1901 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Çekirdek Coffee</title>
+<style>
+  :root {
+    --bg: #efe7dc;
+    --panel: rgba(255, 255, 255, .96);
+    --ink: #2a211b;
+    --muted: #7a6c60;
+    --accent: #1f6f54;
+    --danger: #c0392b;
+    --warn: #c47a10;
+    --gold: #e0a100;
+    --line: rgba(42, 33, 27, .12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; touch-action: none; }
+  button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 10px; padding: 7px 11px; }
+  button:hover:not(:disabled) { background: #fff; border-color: rgba(42,33,27,.3); }
+  button.active, button.active:hover:not(:disabled) { background: var(--ink); color: #fff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover:not(:disabled) { background: #185a44; }
+
+  #top { position: fixed; top: 10px; left: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+  #hud, #controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  #controls { pointer-events: auto; align-self: flex-start; }
+  #controls button { padding: 6px 10px; font-size: 13px; }
+  .sep { width: 6px; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chip.brand { font-weight: 800; letter-spacing: .03em; }
+  .chip.money { font-weight: 700; color: var(--accent); }
+  .chip.money.neg { color: var(--danger); }
+  .low { color: var(--danger); font-weight: 700; }
+
+  #tracker { position: fixed; top: 10px; right: 10px; width: 250px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 10px 12px; font-size: 12.5px; box-shadow: 0 2px 10px rgba(0,0,0,.08); pointer-events: none; }
+  #tracker b { font-size: 13px; }
+  #tracker .g { padding: 3px 0; color: var(--muted); }
+  #tracker .g span { color: var(--ink); }
+  @media (max-width: 900px) { #tracker { display: none; } }
+
+  #panel { position: fixed; left: 10px; width: 360px; max-width: calc(100vw - 20px); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: none; box-shadow: 0 6px 24px rgba(0,0,0,.14);
+    overflow: auto; font-size: 13px; }
+  #panel h3 { margin: 10px 0 6px; font-size: 14px; }
+  #panel h3:first-child { margin-top: 0; }
+  #panel h3 small { font-weight: 400; color: var(--muted); }
+  .note { color: var(--muted); margin: 0 0 6px; line-height: 1.4; }
+  .warnp { color: var(--warn); margin: 4px 0; font-weight: 600; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); }
+  .row small { display: block; color: var(--muted); margin-top: 1px; line-height: 1.35; }
+  .btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+  .btns button { padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+  .price { min-width: 52px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tag { display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 6px; background: var(--accent); color: #fff; margin-left: 4px; vertical-align: 1px; }
+  .stars { color: var(--gold); letter-spacing: 1px; }
+  .rev { padding: 8px 0; border-top: 1px solid var(--line); }
+  .rev .who { color: var(--muted); font-size: 12px; }
+  .rev p { margin: 3px 0 0; line-height: 1.4; }
+  .big { font-size: 30px; font-weight: 800; }
+  .good { color: var(--accent); } .bad { color: var(--danger); }
+
+  #shop { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; gap: 5px; background: var(--panel);
+    padding: 6px; border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 4px 18px rgba(0,0,0,.1);
+    max-width: calc(100vw - 20px); overflow-x: auto; }
+  .card { display: flex; flex-direction: column; align-items: center; min-width: 70px; padding: 5px 6px; gap: 1px; }
+  .card .ic { font-size: 20px; line-height: 1.2; }
+  .card .nm { font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .card .pr { font-size: 10.5px; opacity: .7; }
+  .shopsep { width: 1px; background: var(--line); margin: 4px 2px; flex: none; }
+
+  #hint { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); background: var(--ink); color: #fff;
+    padding: 6px 12px; border-radius: 8px; font-size: 13px; display: none; white-space: nowrap; }
+  #toast { position: fixed; left: 50%; top: 96px; transform: translateX(-50%); background: var(--ink); color: #fff;
+    padding: 9px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none;
+    max-width: min(560px, calc(100vw - 32px)); text-align: center; line-height: 1.4; }
+
+  #overlay { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .bubble { position: absolute; transform: translate(-50%, -100%); background: #fff; border-radius: 10px; padding: 3px 7px;
+    font-size: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.15); white-space: nowrap; }
+  .bubble.warnb { background: #fff3d6; }
+  .bubble .bar { height: 4px; background: #eee; border-radius: 2px; margin-top: 3px; overflow: hidden; }
+  .bubble .bar i { display: block; height: 100%; background: var(--accent); width: 0; }
+  .float { position: absolute; transform: translate(-50%, -100%); font-weight: 800; color: var(--accent); font-size: 14px;
+    text-shadow: 0 1px 0 #fff, 0 0 4px #fff; animation: up 1.4s ease-out forwards; white-space: nowrap; }
+  .float.bad { color: var(--danger); }
+  .float.star { color: var(--gold); font-size: 13px; letter-spacing: 1px; }
+  @keyframes up { to { transform: translate(-50%, -230%); opacity: 0; } }
+
+  #modal { position: fixed; inset: 0; background: rgba(20, 15, 10, .45); display: none; align-items: center; justify-content: center; padding: 16px; }
+  #modal .box { background: #fffdf9; border-radius: 18px; padding: 22px 24px; width: 420px; max-width: 100%; max-height: calc(100vh - 32px);
+    overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); font-size: 14px; line-height: 1.45; }
+  #modal h2 { margin: 0 0 10px; font-size: 20px; }
+  #modal table { width: 100%; border-collapse: collapse; margin: 8px 0; font-variant-numeric: tabular-nums; }
+  #modal td { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  #modal td:last-child { text-align: right; }
+  #modal tr.sum td { font-weight: 800; border-bottom: 2px solid var(--ink); }
+  #modal ul { padding-left: 18px; margin: 8px 0; }
+  #modal li { margin: 4px 0; }
+  #modal .actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
+  #modal .actions button { padding: 10px 16px; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="overlay"></div>
+<div id="top">
+  <div id="hud">
+    <div class="chip brand">☕ ÇEKİRDEK</div>
+    <div class="chip money" id="money"></div>
+    <div class="chip" id="rating"></div>
+    <div class="chip" id="clock"></div>
+    <div class="chip" id="stock"></div>
+  </div>
+  <div id="controls">
+    <button data-speed="0" title="Duraklat (Boşluk)">⏸</button>
+    <button data-speed="1" class="active">1×</button>
+    <button data-speed="2">2×</button>
+    <button data-speed="4">4×</button>
+    <span class="sep"></span>
+    <button data-tab="staff">👥 Personel</button>
+    <button data-tab="menu">📋 Menü</button>
+    <button data-tab="stock">📦 Stok</button>
+    <button data-tab="upgrades">⬆️ Geliştir</button>
+    <button data-tab="street">🏠 Cadde</button>
+    <button data-tab="reviews">💬 Yorumlar</button>
+    <button data-tab="goals">🎯 Hedefler</button>
+    <button data-tab="settings">⚙️</button>
+  </div>
+</div>
+<div id="tracker"></div>
+<div id="panel"></div>
+<div id="shop"></div>
+<div id="hint"></div>
+<div id="toast"></div>
+<div id="modal"><div class="box" id="modalBox"></div></div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// =====================================================================
+// Sabitler ve oyun verisi
+// =====================================================================
+const UW = 5, UD = 6, NU = 4, GW = UW * NU;          // dükkan birimi genişlik/derinlik, birim sayısı
+const SIDEWALK_Z = UD + 0.95, FAR_Z = UD + 6.3;      // yaya şeritleri
+const STREET_X0 = -9, STREET_X1 = GW + 9;
+const MIN_PER_SEC = 1.5;                              // 1 gerçek saniye = 1.5 oyun dakikası
+const OPEN = 8 * 60, CLOSE = 22 * 60, DAY_START = 7 * 60 + 30;
+const MAX_QUEUE = 4, MAX_INSIDE = 40, WALL_H = 1.6;
+const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+const SAVE_KEY = 'cekirdek-coffee-v2';
+
+const UNITS = [
+  { kind: 'bakkal', name: 'Bakkal Hasan', sign: 'HASAN BAKKALİYE', signBg: '#b03a2e', signFg: '#fff6e5', wall: 0xeadcb5, deposit: 9000, rent: 450,
+    hint: 'Hasan Amca emekliliği düşünmüyor… (10. gün ve 600 servis)' },
+  { kind: 'ours', name: 'Çekirdek', deposit: 0, rent: 300 },
+  { kind: 'empty', name: 'Boş dükkan', deposit: 2500, rent: 350 },
+  { kind: 'kuafor', name: 'Kuaför Ahmet', sign: 'KUAFÖR AHMET', signBg: '#24557e', signFg: '#ffffff', wall: 0xcfe0e8, deposit: 5000, rent: 400,
+    hint: 'Ahmet Usta emekli olmayı düşünüyor… (5. gün ve ⭐4.0)' },
+];
+
+const CATALOG = {
+  bar:     { name: 'Espresso Bar', icon: '☕', price: 1500, amb: 0 },
+  table:   { name: 'Masa', icon: '🪑', price: 300, amb: 1, seats: [
+             { x: -0.38, z: 0, h: 0.235, fx: 0, fz: 0, cx: -0.15, cz: 0 }, { x: 0.38, z: 0, h: 0.235, fx: 0, fz: 0, cx: 0.15, cz: 0 }], cupY: 0.39 },
+  stool:   { name: 'Bar Taburesi', icon: '🍸', price: 180, amb: 0, seats: [
+             { x: 0.2, z: 0.14, h: 0.345, fx: -0.12, fz: -0.06, cx: -0.12, cz: -0.06 }], cupY: 0.47 },
+  sofa:    { name: 'Koltuk', icon: '🛋️', price: 650, amb: 4, seats: [
+             { x: -0.22, z: 0.03, h: 0.26, fx: -0.22, fz: 1, cx: -0.36, cz: 0.12 }, { x: 0.22, z: 0.03, h: 0.26, fx: 0.22, fz: 1, cx: 0.36, cz: 0.12 }], cupY: 0.28 },
+  plant:   { name: 'Bitki', icon: '🪴', price: 120, amb: 2 },
+  tree:    { name: 'Zeytin Ağacı', icon: '🌳', price: 380, amb: 4 },
+  shelf:   { name: 'Çekirdek Rafı', icon: '🫘', price: 350, amb: 3 },
+  lamp:    { name: 'Lamba', icon: '💡', price: 220, amb: 2 },
+  pikap:   { name: 'Pikap', icon: '🎶', price: 900, amb: 5 },
+  vitrin:  { name: 'Pasta Vitrini', icon: '🥐', price: 1200, amb: 1 },
+  roaster: { name: 'Kavurma Mak.', icon: '🔥', price: 6000, amb: 3 },
+};
+
+const DRINKS = {
+  espresso:  { name: 'Espresso',   icon: '☕', base: 50,  beans: 1, milk: 0, time: 3,   start: true },
+  americano: { name: 'Americano',  icon: '☕', base: 60,  beans: 1, milk: 0, time: 3.5, start: true },
+  latte:     { name: 'Latte',      icon: '🥛', base: 80,  beans: 1, milk: 1, time: 5,   cost: 600 },
+  flatwhite: { name: 'Flat White', icon: '🥛', base: 90,  beans: 2, milk: 1, time: 5.5, cost: 1500 },
+  coldbrew:  { name: 'Cold Brew',  icon: '🧊', base: 95,  beans: 2, milk: 0, time: 2.5, cost: 2500 },
+  v60:       { name: 'V60 Filtre', icon: '⏳', base: 130, beans: 2, milk: 0, time: 8,   cost: 4000 },
+};
+const FOOD = { name: 'Kruvasan', icon: '🥐', base: 75, cost: 25 };
+const MILK_PACK = 50, MILK_PACK_COST = 150, BAG = 100;
+const BEANS = {
+  brezilya:  { name: 'Brezilya Santos',      q: 2.5, cost: 3,  note: 'Ticari harman, ucuz' },
+  kolombiya: { name: 'Kolombiya Huila',      q: 3.2, cost: 5,  note: 'Dengeli, çikolatamsı' },
+  etiyopya:  { name: 'Etiyopya Yirgacheffe', q: 4.0, cost: 9,  note: 'Çiçeksi, meyvemsi' },
+  geisha:    { name: 'Panama Geisha',        q: 5.0, cost: 18, note: 'Nadir ve efsane' },
+};
+
+const TYPES = {
+  ofis:    { name: 'Ofis çalışanı', icon: '💼', price: .7,  qual: .6,  patience: 26, sit: .25, sitDur: [6, 12],  review: .3,  food: .15,
+             drinks: { americano: 4, espresso: 2, latte: 3, flatwhite: 2, coldbrew: 2 }, look: { acc: 'tie', shirt: 0xf0efe9 } },
+  ogrenci: { name: 'Öğrenci',       icon: '🎒', price: 1.5, qual: .4,  patience: 45, sit: .9,  sitDur: [28, 55], review: .35, food: .35,
+             drinks: { latte: 4, americano: 2, coldbrew: 3, espresso: 1 }, look: { acc: 'backpack' } },
+  tutkun:  { name: 'Kahve tutkunu', icon: '🧐', price: .45, qual: 1.7, patience: 55, sit: .6,  sitDur: [14, 26], review: .8,  food: .1,
+             drinks: { v60: 6, espresso: 3, flatwhite: 2, coldbrew: 1 }, look: { acc: 'glasses' } },
+  emekli:  { name: 'Emekli',        icon: '👴', price: 1.1, qual: .7,  patience: 60, sit: .85, sitDur: [18, 35], review: .3,  food: .5,
+             drinks: { americano: 3, latte: 2, espresso: 2 }, look: { acc: 'cap', hair: 0xd6d6d6 } },
+  turist:  { name: 'Turist',        icon: '📸', price: .35, qual: .9,  patience: 40, sit: .55, sitDur: [12, 22], review: .65, food: .45,
+             drinks: { latte: 3, flatwhite: 2, coldbrew: 3, v60: 1, espresso: 1 }, look: { acc: 'camera' } },
+};
+
+const NAMES = ['Zeynep', 'Mert', 'Elif', 'Can', 'Defne', 'Emre', 'Selin', 'Burak', 'Ece', 'Kerem', 'Ayşe', 'Deniz', 'Cem', 'İrem',
+  'Ozan', 'Melis', 'Kaan', 'Sude', 'Arda', 'Yağmur', 'Efe', 'Nil', 'Barış', 'Derin', 'Umut', 'Ceren', 'Tolga', 'Asya'];
+
+const TXT = {
+  quality: { pos: ['Kahveleri gerçekten çok iyi, çekirdekler taze.', 'Mahallenin en iyi espressosu olabilir.', 'Aromalar harikaydı, işini bilen bir yer.'],
+             neg: ['Kahve sıradandı, daha iyi çekirdek kullanabilirler.', 'Açıkçası market kahvesi gibiydi.'] },
+  atm:     { pos: ['Mekan çok şirin, ortam harika.', 'Dekorasyon çok hoş, saatlerce oturulur.', 'Bitkiler ve müzik çok iyi bir hava katmış.'], neg: [] },
+  charm:   { pos: ['Barista {b} çok güler yüzlüydü!', '{b} kahveyi anlatarak yaptı, bayıldım.'], neg: ['Barista biraz asık suratlıydı.'] },
+  wait:    { pos: ['Servis çok hızlıydı.', 'Hiç beklemeden kahvemi aldım.'], neg: ['Sıra çok uzundu, {m} dakika bekledim.', 'Bekleme süresi fazla uzun.'] },
+  price:   { pos: ['Fiyatlar gayet uygun.', 'Bu kaliteye bu fiyat süper.'], neg: ['Fiyatlar biraz tuzlu.', '{d} için {p} fazla pahalı.'] },
+  missing: { pos: [], neg: ['Menüde {want} yoktu, üzüldüm.', '{want} istedim ama yokmuş.'] },
+  milk:    { pos: [], neg: ['Süt bitmiş, istediğimi içemedim.'] },
+  seat:    { pos: [], neg: ['Oturacak yer bulamadım.', 'İçerisi çok kalabalık, yer yoktu.'] },
+  dirty:   { pos: [], neg: ['Masalar kirliydi, toplayan yoktu.', 'Her yerde boş bardak vardı.'] },
+  food:    { pos: ['Kruvasanı efsane!', 'Kahvenin yanındaki kruvasan çok tazeydi.'], neg: [] },
+  angry:   ['Sipariş bile veremedim, çok bekledim!', 'Sıra hiç ilerlemedi, çıkıp gittim.', 'Kimse ilgilenmedi, bir daha gelmem.'],
+  nostock: ['Kahvecide kahve bitmiş, inanılmaz!', 'Çekirdek kalmamış dediler. Ciddi misiniz?'],
+  refused: ['Fiyatları görünce vazgeçtim.', 'Bir kahveye bu para çok fazla.'],
+};
+
+// =====================================================================
+// Yardımcılar
+// =====================================================================
+const fmt = n => Math.round(n).toLocaleString('tr-TR') + ' ₺';
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const V = (x, z) => new THREE.Vector3(x, 0, z);
+const hhmm = t => `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+const starStr = n => '★'.repeat(clamp(Math.round(n), 0, 5)) + '☆'.repeat(5 - clamp(Math.round(n), 0, 5));
+function weightedPick(w) {
+  let tot = 0; for (const k in w) tot += Math.max(0, w[k]);
+  let r = Math.random() * tot;
+  for (const k in w) { r -= Math.max(0, w[k]); if (r <= 0) return k; }
+  return Object.keys(w)[0];
+}
+
+// =====================================================================
+// Durum ve kayıt
+// =====================================================================
+function newToday() { return { revenue: 0, foodRev: 0, tips: 0, served: 0, angry: 0, turned: 0, refused: 0, stock: 0, invest: 0, sats: [] }; }
+function newState() {
+  return {
+    money: 2500, day: 1, time: DAY_START, phase: 'open', served: 0,
+    machine: 1, ads: 0, autoSupply: false,
+    staff: [{ id: 1, name: 'Sen', role: 'barista', speed: 1, charm: 1, wage: 0, lvl: 1, owner: true }],
+    candidates: [], nextId: 2,
+    menu: Object.fromEntries(Object.entries(DRINKS).map(([id, d]) => [id, { on: !!d.start, price: d.base }])),
+    foodPrice: FOOD.base,
+    beans: Object.fromEntries(Object.keys(BEANS).map(id => [id, { r: id === 'brezilya' ? 150 : 0, h: 0, g: 0 }])),
+    activeBean: 'brezilya', geisha: false,
+    milk: 30, croissant: 0, croissantOrder: 10,
+    units: ['occupied', 'own', 'rent', 'occupied'],
+    items: [{ type: 'bar', i: 7, j: 1, r: 0 }, { type: 'table', i: 6, j: 4, r: 0 }, { type: 'plant', i: 5, j: 0, r: 0 }],
+    reviews: [], goalsDone: [], today: newToday(), lastReport: null, sound: true, introSeen: false, tipsShown: {},
+  };
+}
+let S = null;
+try {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (raw) {
+    const L = JSON.parse(raw), B = newState();
+    S = { ...B, ...L, menu: { ...B.menu, ...L.menu }, beans: { ...B.beans, ...L.beans }, today: { ...newToday(), ...L.today } };
+  }
+} catch (e) { S = null; }
+if (!S) S = newState();
+
+function save() {
+  try {
+    S.items = items.map(({ type, i, j, r }) => ({ type, i, j, r }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify(S));
+  } catch (e) {}
+}
+
+// =====================================================================
+// Sahne, kamera, ışık
+// =====================================================================
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xefe7dc);
+
+const CAM_OFFSET = new THREE.Vector3(30, 30, 30);    // (1,1,1) yönü = gerçek izometrik
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 300);
+function setCamTarget(t) {
+  t.x = clamp(t.x, -4, GW + 4); t.z = clamp(t.z, -1, UD + 8); t.y = 0;
+  camera.position.copy(t).add(CAM_OFFSET); camera.lookAt(t); camTarget = t;
+}
+let camTarget = V(UW * 1.5, UD / 2 + 1);
+setCamTarget(camTarget.clone());
+camera.zoom = 1.25;
+function resize() {
+  const a = innerWidth / innerHeight, halfH = Math.max(6.2, 9 / a);
+  camera.left = -halfH * a; camera.right = halfH * a; camera.top = halfH; camera.bottom = -halfH;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  const top = document.getElementById('top');
+  const panel = document.getElementById('panel');
+  panel.style.top = (top.offsetHeight + 18) + 'px';
+  panel.style.maxHeight = `calc(100vh - ${top.offsetHeight + 120}px)`;
+}
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0xcdb79c, 1.6);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0dd, 2.2);
+sun.target.position.set(GW / 2, 0, UD / 2 + 2);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 16, bottom: -16, near: 1, far: 80 });
+sun.shadow.bias = -0.0006;
+scene.add(sun, sun.target);
+
+// =====================================================================
+// Malzemeler, geometri önbelleği, dokular
+// =====================================================================
+const M = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: o.r ?? 0.75, metalness: o.m ?? 0, ...(o.extra || {}) });
+const matCache = new Map();
+function Mc(color) { let m = matCache.get(color); if (!m) { m = M(color); matCache.set(color, m); } return m; }
+const geoCache = new Map();
+function G(key, make) { let g = geoCache.get(key); if (!g) { g = make(); geoCache.set(key, g); } return g; }
+function mesh(geo, mat, x, y, z) {
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; return m;
+}
+const box = (w, h, d, mat, x, y, z) => mesh(G(`b${w},${h},${d}`, () => new THREE.BoxGeometry(w, h, d)), mat, x, y, z);
+const cyl = (rt, rb, h, mat, x, y, z, s = 16) => mesh(G(`c${rt},${rb},${h},${s}`, () => new THREE.CylinderGeometry(rt, rb, h, s)), mat, x, y, z);
+const sph = (r, mat, x, y, z) => mesh(G(`s${r}`, () => new THREE.SphereGeometry(r, 14, 10)), mat, x, y, z);
+
+const MAT = {
+  dark: M(0x2b2b2e, { r: .6 }), wood: M(0xb98a5a), woodL: M(0xd8b48a), woodD: M(0x6b4a33),
+  steel: M(0xc9cdd2, { m: .8, r: .3 }), black: M(0x1c1c1c, { r: .5 }), white: M(0xf7f5f0),
+  fabric: M(0x3f5e4f, { r: .95 }), fabricL: M(0x557a6a, { r: .95 }), pot: M(0xe8e2d8), soil: M(0x4a3526),
+  leaf1: M(0x2f7a4a, { r: .8 }), leaf2: M(0x3d9460, { r: .8 }), olive: M(0x7d9a5c, { r: .9 }), kraft: M(0xc9a46b),
+  trim: M(0x2f2a26), terracotta: M(0xb5603a), copper: M(0xb87333, { m: .7, r: .35 }),
+  glass: new THREE.MeshStandardMaterial({ color: 0xcfe6ee, roughness: .1, metalness: .1, transparent: true, opacity: .28, depthWrite: false }),
+  shade: M(0xf3e7cf, { extra: { emissive: 0xffd9a0, emissiveIntensity: .6 } }),
+  lampHead: M(0xfff1d0, { extra: { emissive: 0xffd28a, emissiveIntensity: .2 } }),
+  headlight: M(0xfffbe8, { extra: { emissive: 0xfff3c0, emissiveIntensity: .1 } }),
+  apron: M(0x1f4f3e), apronOwner: M(0x5a3d2b), komi: M(0x34495e), croissant: M(0xd9a24a, { r: .6 }),
+};
+
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); }
+  return t;
+}
+function noise(g, w, h, base, spread, n = 4000) {
+  g.fillStyle = base; g.fillRect(0, 0, w, h);
+  for (let k = 0; k < n; k++) { const v = Math.random() * spread - spread / 2; g.fillStyle = v > 0 ? `rgba(255,255,255,${v})` : `rgba(0,0,0,${-v})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+}
+const TEX = {
+  wood: canvasTex(512, 512, (g) => {
+    const tones = ['#d9b88f', '#d3b085', '#ddbf98', '#cfa97c', '#d6b48a'], rows = 8, h = 64;
+    for (let r = 0; r < rows; r++) {
+      let x = -(r % 2) * 128;
+      while (x < 512) { const w = 160 + Math.random() * 120; g.fillStyle = pick(tones); g.fillRect(x, r * h, w, h); g.fillStyle = 'rgba(80,50,20,.25)'; g.fillRect(x, r * h, 2, h); x += w; }
+      g.fillStyle = 'rgba(80,50,20,.3)'; g.fillRect(0, r * h, 512, 2);
+    }
+  }, [UW / 3, UD / 3]),
+  tile: canvasTex(256, 256, (g) => {
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { g.fillStyle = (i + j) % 2 ? '#efe4cf' : '#e6d8bd'; g.fillRect(i * 64, j * 64, 64, 64); }
+    g.strokeStyle = 'rgba(120,100,70,.35)'; g.lineWidth = 2;
+    for (let k = 0; k <= 4; k++) { g.beginPath(); g.moveTo(k * 64, 0); g.lineTo(k * 64, 256); g.moveTo(0, k * 64); g.lineTo(256, k * 64); g.stroke(); }
+  }, [UW / 2, UD / 2]),
+  checker: canvasTex(256, 256, (g) => {
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { g.fillStyle = (i + j) % 2 ? '#f4f4f4' : '#2a2a2a'; g.fillRect(i * 64, j * 64, 64, 64); }
+  }, [UW / 2, UD / 2]),
+  concrete: canvasTex(256, 256, (g, w, h) => noise(g, w, h, '#bdb7ad', .12), [UW / 3, UD / 3]),
+};
+
+// =====================================================================
+// Cadde (sabit kısım)
+// =====================================================================
+const streetLights = [];
+const barberPoles = [];
+function buildStreet() {
+  const len = STREET_X1 - STREET_X0 + 20, cx = (STREET_X0 + STREET_X1) / 2;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), M(0xd8cdbd, { r: 1 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.set(cx, -0.14, UD); ground.receiveShadow = true; scene.add(ground);
+  // kaldırımlar
+  const swTex = canvasTex(128, 128, (g) => { noise(g, 128, 128, '#d3cdc3', .08, 600); g.strokeStyle = 'rgba(90,80,70,.25)'; g.lineWidth = 2; g.strokeRect(0, 0, 128, 128); }, [len / 0.85, 2]);
+  const sw = box(len, 0.1, 1.7, new THREE.MeshStandardMaterial({ map: swTex, roughness: .95 }), cx, -0.05, UD + 0.85); scene.add(sw);
+  scene.add(box(len, 0.13, 0.12, Mc(0xa9a196), cx, -0.05, UD + 1.72));
+  const asph = canvasTex(256, 256, (g, w, h) => noise(g, w, h, '#4a4a4f', .1, 5000), [len / 4, 1]);
+  scene.add(box(len, 0.1, 3.7, new THREE.MeshStandardMaterial({ map: asph, roughness: .95 }), cx, -0.12, UD + 3.6));
+  const white = Mc(0xf2f0e8);
+  for (let x = STREET_X0 - 8; x < STREET_X1 + 8; x += 1.6) scene.add(box(0.8, 0.01, 0.07, white, x, -0.065, UD + 3.6));
+  for (let k = 0; k < 7; k++) scene.add(box(1.1, 0.01, 0.26, white, 2.5, -0.064, UD + 2.0 + k * 0.5));
+  const sw2Tex = swTex.clone(); sw2Tex.needsUpdate = true;
+  scene.add(box(len, 0.13, 0.12, Mc(0xa9a196), cx, -0.05, UD + 5.48));
+  scene.add(box(len, 0.1, 1.8, new THREE.MeshStandardMaterial({ map: sw2Tex, roughness: .95 }), cx, -0.05, UD + 6.35));
+  // park
+  scene.add(box(len, 0.1, 3.2, M(0x9dbf7c, { r: 1 }), cx, -0.06, UD + 8.85));
+  for (let x = STREET_X0 + 1; x < STREET_X1; x += 3.6) {
+    const tx = x + rand(-.5, .5), tz = UD + 8.3 + rand(-.3, .5);
+    scene.add(cyl(0.05, 0.07, 0.6, MAT.woodD, tx, 0.3, tz, 8));
+    scene.add(sph(0.38, Mc(pick([0x4e8a4a, 0x5b9a52, 0x447d44])), tx, 0.85, tz));
+    scene.add(sph(0.26, Mc(0x5fa356), tx + .2, 1.1, tz - .1));
+  }
+  for (const bx of [6, 16]) {
+    scene.add(box(1.0, 0.05, 0.3, MAT.wood, bx, 0.25, UD + 7.5), box(1.0, 0.25, 0.05, MAT.wood, bx, 0.4, UD + 7.66));
+    scene.add(box(0.05, 0.25, 0.3, MAT.black, bx - .45, .12, UD + 7.5), box(0.05, 0.25, 0.3, MAT.black, bx + .45, .12, UD + 7.5));
+  }
+  // otobüs durağı
+  const bs = 12.5;
+  scene.add(box(1.8, 0.05, 0.8, MAT.trim, bs, 1.2, UD + 6.6));
+  scene.add(box(0.05, 1.2, 0.05, MAT.trim, bs - .85, .6, UD + 6.95), box(0.05, 1.2, 0.05, MAT.trim, bs + .85, .6, UD + 6.95));
+  scene.add(box(1.7, 1.0, 0.03, MAT.glass, bs, .65, UD + 6.97));
+  scene.add(box(1.2, 0.05, 0.25, MAT.wood, bs, 0.3, UD + 6.8));
+  const busSign = canvasTex(128, 128, (g) => { g.fillStyle = '#1d5fa8'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#fff'; g.font = '800 64px system-ui'; g.textAlign = 'center'; g.fillText('🚌', 64, 84); });
+  const sgn = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ map: busSign }));
+  sgn.position.set(bs - 1.1, 1.05, UD + 6.2); scene.add(sgn, cyl(0.02, 0.02, 1.0, MAT.trim, bs - 1.1, .5, UD + 6.18, 6));
+  // sokak lambaları
+  const lamp = (x, z) => {
+    scene.add(cyl(0.03, 0.04, 1.25, MAT.trim, x, 0.62, z, 8));
+    scene.add(box(0.06, 0.04, 0.3, MAT.trim, x, 1.23, z - 0.13));
+    scene.add(box(0.16, 0.06, 0.2, MAT.lampHead, x, 1.19, z - 0.27));
+    const l = new THREE.PointLight(0xffc77a, 0, 4.5, 1.4); l.position.set(x, 1.05, z - 0.3); scene.add(l); streetLights.push(l);
+  };
+  lamp(0, UD + 1.6); lamp(10, UD + 1.6); lamp(20, UD + 1.6); lamp(5, UD + 5.7); lamp(15, UD + 5.7);
+  // arka çatılar ve yan binalar
+  const roofCols = [0x9b8f84, 0x8e857c, 0xa0948a, 0x938a80];
+  for (let u = 0; u < NU; u++) {
+    scene.add(box(UW, WALL_H + .05, 3.5, Mc(roofCols[u]), u * UW + UW / 2, (WALL_H + .05) / 2, -1.9));
+    scene.add(box(0.5, 0.3, 0.4, Mc(0xd8d8d8), u * UW + 1 + u * .7, WALL_H + .2, -1.4));
+    if (u % 2 === 0) scene.add(cyl(0.25, 0.25, 0.45, Mc(0xe8e8e8), u * UW + 3.6, WALL_H + .27, -2.3, 12));
+  }
+  const sideBld = (x0, x1, h, col) => {
+    const w = x1 - x0, cxx = (x0 + x1) / 2;
+    scene.add(box(w, h, UD + 3.5, Mc(col), cxx, h / 2, (UD - 3.5) / 2));
+    for (let x = x0 + .8; x < x1 - .5; x += 1.4) scene.add(box(0.7, 0.45, 0.03, Mc(0x5c6b73), x, h * .55, UD + 0.02));
+    scene.add(box(0.6, 0.9, 0.03, Mc(0x5a3d2b), x1 - 1, .45, UD + 0.02));
+  };
+  sideBld(-9, -0.08, 1.9, 0xd9b99b);
+  sideBld(21, 29, 1.1, 0xc9d3c0);
+}
+
+// =====================================================================
+// Dükkan birimleri (kiralandıkça yeniden kurulur)
+// =====================================================================
+let unitGroup = new THREE.Group(); scene.add(unitGroup);
+const unitLights = [];
+let npcs = [];
+let menuBoard = null;
+for (let u = 0; u < NU; u++) {
+  const l = new THREE.PointLight(0xffd9a8, 0, 7, 1.2); l.position.set(u * UW + UW / 2, 1.45, UD / 2); scene.add(l); unitLights.push(l);
+}
+
+function menuTexture() {
+  return canvasTex(512, 220, (g) => {
+    g.fillStyle = '#1e1e1e'; g.fillRect(0, 0, 512, 220);
+    g.fillStyle = '#f2ead8'; g.font = '700 30px system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('MENÜ', 256, 38);
+    g.font = '500 21px system-ui, sans-serif';
+    Object.entries(DRINKS).filter(([id]) => S.menu[id].on).forEach(([id, d], k) => {
+      const col = k % 2, row = Math.floor(k / 2), x = 26 + col * 250, y = 80 + row * 40;
+      g.textAlign = 'left'; g.fillStyle = '#f2ead8'; g.fillText(d.name, x, y);
+      g.textAlign = 'right'; g.fillStyle = '#d6b480'; g.fillText(S.menu[id].price + '₺', x + 214, y);
+    });
+  });
+}
+function refreshMenuBoard() { if (!menuBoard) return; menuBoard.material.map.dispose(); menuBoard.material.map = menuTexture(); }
+
+function signTexture(text, sub, bg, fg) {
+  return canvasTex(512, 160, (g) => {
+    g.fillStyle = bg; g.fillRect(0, 0, 512, 160);
+    g.shadowColor = fg; g.shadowBlur = 16; g.fillStyle = fg; g.textAlign = 'center';
+    g.font = '800 62px system-ui, sans-serif'; g.fillText(text, 256, 82);
+    g.shadowBlur = 0; g.fillStyle = 'rgba(255,255,255,.7)'; g.font = '500 25px system-ui, sans-serif'; g.fillText(sub, 256, 126);
+  });
+}
+
+function fascia(u) {
+  const st = S.units[u], U = UNITS[u];
+  let txt, bg, fg;
+  if (st === 'own') { txt = 'ÇEKİRDEK COFFEE'; bg = '#1f4f3e'; fg = '#f3e9d6'; }
+  else if (st === 'occupied') { txt = U.sign; bg = U.signBg; fg = U.signFg; }
+  else { txt = 'KİRALIK  ☎ 555 01 23'; bg = '#f6f2ea'; fg = '#c0392b'; }
+  const tex = canvasTex(512, 52, (g) => {
+    g.fillStyle = bg; g.fillRect(0, 0, 512, 52); g.fillStyle = fg;
+    g.font = `800 ${txt.length > 16 ? 25 : 30}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, 256, 28);
+  });
+  const side = Mc(0x3a3430);
+  const front = new THREE.MeshStandardMaterial({ map: tex, roughness: .6, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: .12 });
+  const m = new THREE.Mesh(G('b3,0.3,0.1', () => new THREE.BoxGeometry(3, .3, .1)), [side, side, side, side, front, side]);
+  m.position.set(u * UW + 1.5, .15, UD + .05); m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+
+function buildUnits() {
+  scene.remove(unitGroup);
+  unitGroup = new THREE.Group(); scene.add(unitGroup);
+  npcs = []; barberPoles.length = 0;
+  const g = unitGroup;
+  for (let u = 0; u < NU; u++) {
+    const st = S.units[u], U = UNITS[u], own = st === 'own', x0 = u * UW, cx = x0 + UW / 2;
+    const tex = own ? TEX.wood : st === 'occupied' && U.kind === 'bakkal' ? TEX.tile : st === 'occupied' && U.kind === 'kuafor' ? TEX.checker : TEX.concrete;
+    const floor = new THREE.Mesh(G('floorU', () => new THREE.PlaneGeometry(UW, UD)), new THREE.MeshStandardMaterial({ map: tex, roughness: .8 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0, UD / 2); floor.receiveShadow = true; g.add(floor);
+    g.add(box(UW, 0.3, UD, Mc(0x8a6a4f), cx, -0.151, UD / 2));
+    const wallCol = own ? 0xf4f0ea : st === 'occupied' ? U.wall : 0xd6d0c6;
+    g.add(box(UW, WALL_H, 0.15, Mc(wallCol), cx, WALL_H / 2, -0.075));
+    g.add(box(UW, 0.08, 0.17, MAT.trim, cx, 0.04, -0.075));
+    // birimler arası duvar: iki taraf da bizimse yok, değilse alçak duvar
+    if (u === 0) { g.add(box(0.15, WALL_H, UD, Mc(wallCol), -0.075, WALL_H / 2, UD / 2)); g.add(box(0.17, 0.08, UD, MAT.trim, -0.075, 0.04, UD / 2)); }
+    else if (!(own && S.units[u - 1] === 'own')) { g.add(box(0.12, 0.35, UD, Mc(0xe9e3da), x0, 0.175, UD / 2)); g.add(box(0.14, 0.03, UD, MAT.trim, x0, 0.36, UD / 2)); }
+    if (u === NU - 1) { g.add(box(0.12, 0.35, UD, Mc(0xe9e3da), GW, 0.175, UD / 2)); g.add(box(0.14, 0.03, UD, MAT.trim, GW, 0.36, UD / 2)); }
+    // ön cephe: tabelalı alçak duvar (kapı boşluklu); yüksek cephe içeriyi kapatacağı için yok
+    g.add(fascia(u));
+    g.add(box(1, 0.3, 0.1, Mc(0x3a3430), x0 + 4.5, 0.15, UD + 0.05));
+    g.add(box(0.12, 0.38, 0.12, MAT.trim, x0 + 0.06, 0.19, UD + 0.05));
+    if (u === NU - 1) g.add(box(0.12, 0.38, 0.12, MAT.trim, GW - 0.06, 0.19, UD + 0.05));
+    g.add(box(0.8, 0.01, 0.45, Mc(0x2f2f2f), x0 + 3.5, 0.006, UD - 0.28));
+    if (own && u === 1) decorOurs(g, x0);
+    else if (st === 'occupied' && U.kind === 'bakkal') decorBakkal(g, x0);
+    else if (st === 'occupied' && U.kind === 'kuafor') decorKuafor(g, x0);
+    else if (!own) decorEmpty(g, x0);
+  }
+}
+
+function decorOurs(g, x0) {
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.53), new THREE.MeshBasicMaterial({ map: signTexture('ÇEKİRDEK', 'specialty coffee · roastery', '#23201d', '#ffe2b8') }));
+  sign.position.set(x0 + 1.15, 1.05, 0.012); g.add(sign);
+  menuBoard = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 0.75), new THREE.MeshBasicMaterial({ map: menuTexture() }));
+  menuBoard.position.set(x0 + 3.55, 1.02, 0.012); g.add(menuBoard);
+}
+const PRODUCT_COLORS = [0xe74c3c, 0xf1c40f, 0x3498db, 0x2ecc71, 0xe67e22, 0x9b59b6, 0xecf0f1, 0x1abc9c];
+function decorBakkal(g, x0) {
+  const shelfMat = Mc(0x8b6b4a);
+  for (let k = 0; k < 3; k++) {
+    const sx = x0 + 0.95 + k * 1.55;
+    g.add(box(1.4, 1.15, 0.04, shelfMat, sx, 0.575, 0.05));
+    for (const y of [0.05, 0.42, 0.79]) {
+      g.add(box(1.4, 0.03, 0.3, shelfMat, sx, y, 0.2));
+      for (let n = 0; n < 6; n++) { const h = pick([0.14, 0.18, 0.22]); g.add(box(0.17, h, 0.15, Mc(pick(PRODUCT_COLORS)), sx - 0.56 + n * 0.225, y + 0.015 + h / 2, 0.2)); }
+    }
+  }
+  g.add(box(0.55, 1.15, 0.5, MAT.white, x0 + 0.35, 0.575, 2.3));
+  g.add(box(0.02, 0.85, 0.4, Mc(0x9fd3e6), x0 + 0.63, 0.62, 2.3));
+  g.add(box(1.15, 0.5, 0.45, Mc(0xa0522d), x0 + 1.4, 0.25, 4.3));
+  g.add(box(1.2, 0.03, 0.5, MAT.woodL, x0 + 1.4, 0.515, 4.3));
+  g.add(box(0.22, 0.14, 0.18, MAT.dark, x0 + 1.15, 0.6, 4.3));
+  const hasan = makePerson({ shirt: 0xf3f1ea, hair: 0xd0d0d0, skin: 0xe0ac7e });
+  hasan.position.set(x0 + 1.4, 0, 3.8); g.add(hasan); npcs.push(hasan);
+  for (let k = 0; k < 3; k++) {
+    const cx = x0 + 0.55 + k * 0.55;
+    g.add(box(0.48, 0.2, 0.34, MAT.woodL, cx, 0.1, UD + 0.28));
+    const fc = Mc([0xf39c12, 0xc0392b, 0x7cb342][k]);
+    for (let n = 0; n < 6; n++) g.add(sph(0.06, fc, cx - 0.14 + (n % 3) * 0.14, 0.24, UD + 0.2 + Math.floor(n / 3) * 0.14));
+  }
+}
+function decorKuafor(g, x0) {
+  for (const sx of [x0 + 1.4, x0 + 3.2]) {
+    g.add(box(0.75, 0.6, 0.02, M(0xd5ecf4, { r: .05, m: .6 }), sx, 0.95, 0.02));
+    g.add(box(0.85, 0.06, 0.26, MAT.white, sx, 0.5, 0.14));
+    g.add(cyl(0.1, 0.13, 0.22, MAT.black, sx, 0.11, 1.0, 12));
+    g.add(box(0.32, 0.08, 0.32, Mc(0x8b1e1e), sx, 0.26, 1.0));
+    g.add(box(0.32, 0.34, 0.06, Mc(0x8b1e1e), sx, 0.45, 1.15));
+  }
+  const client = makePerson({ shirt: 0xffffff });
+  client.position.set(x0 + 1.4, 0, 1.0); client.rotation.y = Math.PI; sitPose(client, 0.3); g.add(client);
+  const ahmet = makePerson({ shirt: 0x24557e, hair: 0x222222 });
+  ahmet.position.set(x0 + 1.85, 0, 1.25); ahmet.rotation.y = -Math.PI * 0.75; g.add(ahmet); npcs.push(ahmet);
+  g.add(box(0.32, 0.22, 1.3, MAT.woodD, x0 + 0.3, 0.11, 3.6));
+  const poleTex = canvasTex(64, 128, (gg) => {
+    gg.fillStyle = '#fff'; gg.fillRect(0, 0, 64, 128);
+    for (let k = -2; k < 8; k++) { gg.fillStyle = k % 2 ? '#c0392b' : '#2c5f8a'; gg.beginPath(); gg.moveTo(0, k * 32); gg.lineTo(64, k * 32 - 32); gg.lineTo(64, k * 32 - 16); gg.lineTo(0, k * 32 + 16); gg.fill(); }
+  }, [1, 1]);
+  const pole = cyl(0.05, 0.05, 0.55, new THREE.MeshStandardMaterial({ map: poleTex }), x0 + 0.25, 0.75, UD + 0.18, 16);
+  g.add(pole, sph(0.06, MAT.steel, x0 + 0.25, 1.05, UD + 0.18), cyl(0.06, 0.06, 0.04, MAT.steel, x0 + 0.25, 0.46, UD + 0.18));
+  barberPoles.push(poleTex);
+}
+function decorEmpty(g, x0) {
+  g.add(box(0.5, 0.35, 0.4, MAT.kraft, x0 + 1.2, 0.175, 1.0), box(0.4, 0.3, 0.35, MAT.kraft, x0 + 1.3, 0.5, 1.0));
+  g.add(box(0.45, 0.3, 0.45, MAT.kraft, x0 + 3.8, 0.15, 3.2));
+  const paper = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), new THREE.MeshBasicMaterial({ map: signTexture('KİRALIK', '☎ 555 01 23', '#fbf7ee', '#c0392b') }));
+  paper.position.set(x0 + 2.5, 0.95, 0.012); g.add(paper);
+}
+
+// =====================================================================
+// İnsan modelleri
+// =====================================================================
+const SHIRTS = [0xd96c4f, 0x4f7cd9, 0xe3b23c, 0x8f5fc2, 0x3aa17e, 0xe07aa1, 0x5c6670, 0xf0efe9, 0x2d4059, 0x7a9e7e, 0xb5651d];
+const SKINS = [0xf1c9a5, 0xe0ac7e, 0xc68642, 0x8d5524, 0xffdbb5];
+const HAIRS = [0x2b1d14, 0x5a3a22, 0xa8783a, 0x111111, 0xd9c08a, 0x8a3b1e];
+function makePerson(look = {}) {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const legs = new THREE.Group(); legs.position.y = 0.18; body.add(legs);
+  legs.add(cyl(0.085, 0.095, 0.18, Mc(look.pants ?? pick([0x2b2b2e, 0x34495e, 0x5d4e3c, 0x1f2a44])), 0, -0.09, 0, 10));
+  const shirt = look.shirt instanceof THREE.Material ? look.shirt : Mc(look.shirt ?? pick(SHIRTS));
+  body.add(cyl(0.11, 0.14, 0.32, shirt, 0, 0.34, 0, 14));
+  body.add(sph(0.1, Mc(look.skin ?? pick(SKINS)), 0, 0.6, 0));
+  const hair = sph(0.104, Mc(look.hair ?? pick(HAIRS)), 0, 0.63, -0.015); hair.scale.set(1, .75, 1); body.add(hair);
+  const acc = look.acc;
+  if (acc === 'backpack') body.add(box(0.17, 0.2, 0.08, Mc(pick([0x34495e, 0xc0392b, 0x16a085, 0xf39c12])), 0, 0.37, -0.15));
+  else if (acc === 'glasses') body.add(box(0.17, 0.025, 0.02, MAT.black, 0, 0.61, 0.095));
+  else if (acc === 'cap') { const m = Mc(pick([0x7f8c8d, 0x2c3e50, 0x8e6e53])); body.add(cyl(0.106, 0.106, 0.05, m, 0, 0.69, 0, 14), box(0.13, 0.012, 0.09, m, 0, 0.675, 0.1)); }
+  else if (acc === 'camera') body.add(box(0.09, 0.06, 0.05, MAT.black, 0, 0.42, 0.14));
+  else if (acc === 'tie') body.add(box(0.03, 0.15, 0.012, Mc(0x8e2b2b), 0, 0.39, 0.128));
+  else if (acc === 'apron') body.add(box(0.2, 0.26, 0.012, look.apron || MAT.apron, 0, 0.33, 0.135));
+  g.userData = { body, legs };
+  return g;
+}
+function sitPose(p, seatH) { p.userData.body.position.y = seatH - 0.16; p.userData.legs.rotation.x = -Math.PI / 2; }
+function standPose(p) { p.userData.body.position.y = 0; p.userData.legs.rotation.x = 0; }
+
+// =====================================================================
+// Eşya modelleri
+// =====================================================================
+function makeModel(type) {
+  const g = new THREE.Group(), ud = g.userData;
+  if (type === 'bar') {
+    g.add(box(0.92, 0.46, 0.42, MAT.dark, 0, 0.23, 0.08));
+    g.add(box(0.96, 0.04, 0.46, MAT.woodL, 0, 0.48, 0.08));
+    g.add(box(0.34, 0.22, 0.24, MAT.steel, -0.18, 0.61, 0.02));
+    g.add(box(0.3, 0.03, 0.02, MAT.black, -0.18, 0.67, 0.145));
+    g.add(cyl(0.02, 0.02, 0.05, MAT.black, -0.24, 0.58, 0.16, 8), cyl(0.02, 0.02, 0.05, MAT.black, -0.12, 0.58, 0.16, 8));
+    g.add(cyl(0.05, 0.05, 0.16, MAT.black, 0.2, 0.58, 0.02));
+    g.add(cyl(0.075, 0.045, 0.1, M(0x5a3d2b, { r: .3 }), 0.2, 0.71, 0.02));
+    g.add(cyl(0.03, 0.025, 0.06, MAT.white, 0.38, 0.53, 0.2, 10), cyl(0.03, 0.025, 0.06, MAT.white, 0.31, 0.53, 0.23, 10));
+  } else if (type === 'table') {
+    g.add(cyl(0.26, 0.26, 0.03, MAT.woodL, 0, 0.36, 0, 28));
+    g.add(cyl(0.025, 0.025, 0.34, MAT.black, 0, 0.18, 0, 8));
+    g.add(cyl(0.12, 0.12, 0.02, MAT.black, 0, 0.01, 0, 20));
+    for (const s of [-1, 1]) {
+      const x = s * 0.38;
+      g.add(box(0.2, 0.03, 0.2, MAT.wood, x, 0.22, 0));
+      for (const [lx, lz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) g.add(box(0.02, 0.21, 0.02, MAT.black, x + lx * 0.08, 0.105, lz * 0.08));
+      g.add(box(0.025, 0.2, 0.2, MAT.wood, x + s * 0.1, 0.34, 0));
+    }
+  } else if (type === 'stool') {
+    g.add(cyl(0.16, 0.16, 0.025, MAT.woodL, -0.12, 0.44, -0.06, 20));
+    g.add(cyl(0.02, 0.02, 0.43, MAT.black, -0.12, 0.215, -0.06, 8), cyl(0.09, 0.09, 0.015, MAT.black, -0.12, 0.008, -0.06, 16));
+    g.add(cyl(0.09, 0.09, 0.03, MAT.wood, 0.2, 0.33, 0.14, 16));
+    g.add(cyl(0.015, 0.015, 0.32, MAT.black, 0.2, 0.16, 0.14, 6), cyl(0.07, 0.07, 0.01, MAT.black, 0.2, 0.005, 0.14, 12));
+  } else if (type === 'sofa') {
+    g.add(box(0.9, 0.18, 0.42, MAT.fabric, 0, 0.11, 0));
+    g.add(box(0.8, 0.06, 0.34, MAT.fabricL, 0, 0.23, 0.03));
+    g.add(box(0.9, 0.3, 0.1, MAT.fabric, 0, 0.3, -0.16));
+    g.add(box(0.07, 0.26, 0.42, MAT.fabric, -0.43, 0.2, 0), box(0.07, 0.26, 0.42, MAT.fabric, 0.43, 0.2, 0));
+  } else if (type === 'plant') {
+    g.add(cyl(0.14, 0.11, 0.26, MAT.pot, 0, 0.13, 0));
+    g.add(cyl(0.13, 0.13, 0.01, MAT.soil, 0, 0.255, 0));
+    for (let k = 0; k < 7; k++) {
+      const a = k / 7 * Math.PI * 2, rr = k === 0 ? 0 : 0.11, r = pick([0.09, 0.11, 0.13]);
+      const leaf = mesh(G(`ico${r}`, () => new THREE.IcosahedronGeometry(r, 0)), k % 2 ? MAT.leaf1 : MAT.leaf2, Math.cos(a) * rr, rand(0.38, 0.6), Math.sin(a) * rr);
+      leaf.rotation.set(rand(0, 3), rand(0, 3), 0); g.add(leaf);
+    }
+  } else if (type === 'tree') {
+    g.add(cyl(0.17, 0.13, 0.28, MAT.terracotta, 0, 0.14, 0));
+    g.add(cyl(0.03, 0.045, 0.55, MAT.woodD, 0, 0.55, 0, 8));
+    for (const [x, y, z, r] of [[0, .95, 0, .2], [.13, .85, .08, .15], [-.12, .88, -.06, .16], [.04, 1.1, -.04, .14]]) g.add(sph(r, MAT.olive, x, y, z));
+  } else if (type === 'shelf') {
+    g.add(box(0.82, 1.0, 0.03, MAT.woodD, 0, 0.5, -0.4));
+    g.add(box(0.03, 1.0, 0.26, MAT.woodD, -0.41, 0.5, -0.28), box(0.03, 1.0, 0.26, MAT.woodD, 0.41, 0.5, -0.28));
+    for (const y of [0.04, 0.36, 0.68, 0.99]) g.add(box(0.82, 0.025, 0.26, MAT.woodD, 0, y, -0.28));
+    for (const y of [0.04, 0.36, 0.68]) for (let k = 0; k < 4; k++) {
+      const h = pick([0.16, 0.19, 0.21]);
+      g.add(box(0.12, h, 0.08, k % 3 === 2 ? MAT.black : MAT.kraft, -0.27 + k * 0.18, y + 0.0125 + h / 2, -0.28));
+    }
+  } else if (type === 'lamp') {
+    g.add(cyl(0.1, 0.12, 0.03, MAT.black, 0, 0.015, 0));
+    g.add(cyl(0.012, 0.012, 0.9, MAT.black, 0, 0.46, 0, 8));
+    g.add(cyl(0.06, 0.16, 0.15, MAT.shade, 0, 0.93, 0));
+    const light = new THREE.PointLight(0xffcf8a, 1.2, 3.2, 1.2); light.position.set(0, 0.82, 0); g.add(light);
+  } else if (type === 'pikap') {
+    g.add(box(0.72, 0.42, 0.36, MAT.woodD, 0, 0.21, -0.12));
+    for (let k = 0; k < 6; k++) g.add(box(0.03, 0.26, 0.24, Mc(pick(PRODUCT_COLORS)), -0.28 + k * 0.05, 0.16, -0.08));
+    g.add(box(0.34, 0.04, 0.28, MAT.woodL, 0, 0.44, -0.12));
+    const disc = cyl(0.11, 0.11, 0.012, MAT.black, -0.03, 0.465, -0.12, 24); g.add(disc); ud.spin = disc;
+    g.add(box(0.14, 0.24, 0.14, MAT.black, -0.27, 0.54, -0.12), box(0.14, 0.24, 0.14, MAT.black, 0.27, 0.54, -0.12));
+  } else if (type === 'vitrin') {
+    g.add(box(0.9, 0.4, 0.45, MAT.woodL, 0, 0.2, 0));
+    g.add(box(0.84, 0.02, 0.4, MAT.white, 0, 0.41, 0));
+    const gl = box(0.88, 0.28, 0.43, MAT.glass, 0, 0.55, 0); gl.castShadow = false; g.add(gl);
+    g.add(box(0.9, 0.02, 0.45, MAT.trim, 0, 0.7, 0));
+    ud.croissants = [];
+    for (let k = 0; k < 8; k++) {
+      const c = sph(0.05, MAT.croissant, -0.3 + (k % 4) * 0.2, 0.45, -0.08 + Math.floor(k / 4) * 0.16);
+      c.scale.set(1.4, 0.7, 0.9); g.add(c); ud.croissants.push(c);
+    }
+  } else if (type === 'roaster') {
+    g.add(box(0.5, 0.36, 0.5, MAT.dark, 0, 0.18, -0.08));
+    const drum = new THREE.Group(); drum.position.set(0, 0.55, -0.08);
+    const d = cyl(0.17, 0.17, 0.36, MAT.copper, 0, 0, 0, 20); d.rotation.x = Math.PI / 2; drum.add(d);
+    drum.add(box(0.05, 0.36, 0.05, MAT.black, 0, 0.17, 0));
+    g.add(drum); ud.drum = drum;
+    g.add(cyl(0.12, 0.03, 0.18, MAT.steel, 0, 0.82, -0.16));
+    g.add(cyl(0.04, 0.04, 0.75, MAT.black, -0.19, 0.75, -0.28, 10));
+    g.add(cyl(0.2, 0.2, 0.06, MAT.steel, 0, 0.34, 0.26, 20));
+    const paddle = box(0.34, 0.03, 0.03, MAT.black, 0, 0.385, 0.26); g.add(paddle); ud.paddle = paddle;
+  }
+  return g;
+}
+
+// =====================================================================
+// Eşyalar ve ızgara
+// =====================================================================
+let items = [];
+let ownMinU = 1, ownMaxU = 1;
+function recomputeBounds() {
+  const own = S.units.map((s, u) => s === 'own' ? u : -1).filter(u => u >= 0);
+  ownMinU = Math.min(...own); ownMaxU = Math.max(...own);
+}
+const ownX0 = () => ownMinU * UW, ownX1 = () => (ownMaxU + 1) * UW;
+const ownedCount = () => ownMaxU - ownMinU + 1;
+const inBounds = (i, j) => i >= ownX0() && i < ownX1() && j >= 0 && j < UD;
+const doorOf = u => ({ i: u * UW + 3, j: UD - 1 });
+function ownedDoors() { const a = []; for (let u = ownMinU; u <= ownMaxU; u++) a.push(doorOf(u)); return a; }
+const isDoor = (i, j) => j === UD - 1 && inBounds(i, j) && (i - 3) % UW === 0;
+const itemAt = (i, j) => items.find(it => it.i === i && it.j === j);
+const tileCenter = (i, j) => V(i + 0.5, j + 0.5);
+function localToWorld(item, x, z) {
+  const t = item.r * Math.PI / 2, c = Math.cos(t), s = Math.sin(t);
+  return V(item.i + 0.5 + x * c + z * s, item.j + 0.5 - x * s + z * c);
+}
+const frontTile = it => ({ i: it.i + DIRS[it.r][0], j: it.j + DIRS[it.r][1] });
+const bars = () => items.filter(it => it.type === 'bar');
+const hasItem = t => items.some(it => it.type === t);
+const atmosphere = () => items.reduce((a, it) => a + CATALOG[it.type].amb, 0);
+const atmPerUnit = () => atmosphere() / ownedCount();
+function allSeats() { return items.filter(it => it.seats).flatMap(it => it.seats.map(s => ({ it, s }))); }
+
+function addItem(data) {
+  const it = { ...data, queue: [], cur: null, prog: 0, barista: null };
+  it.mesh = makeModel(it.type);
+  it.mesh.position.copy(tileCenter(it.i, it.j));
+  it.mesh.rotation.y = it.r * Math.PI / 2;
+  scene.add(it.mesh);
+  const def = CATALOG[it.type];
+  if (def.seats) it.seats = def.seats.map(s => {
+    const pos = localToWorld(it, s.x, s.z), f = localToWorld(it, s.fx, s.fz);
+    return { pos, h: s.h, face: Math.atan2(f.x - pos.x, f.z - pos.z), cup: localToWorld(it, s.cx, s.cz), occ: null, dirty: false, cupMesh: null };
+  });
+  items.push(it);
+  if (it.type === 'vitrin') refreshVitrin();
+  return it;
+}
+function removeItem(it) {
+  items = items.filter(x => x !== it);
+  scene.remove(it.mesh);
+  if (it.tagEl) it.tagEl.remove();
+  if (it.baristaMesh) scene.remove(it.baristaMesh);
+  if (it.seats) for (const s of it.seats) { if (s.cupMesh) scene.remove(s.cupMesh); if (s.occ) s.occ.leaveShop(); }
+  for (const c of [...it.queue]) c.rejoin();
+  if (it.type === 'bar') assignBaristas();
+}
+function markDirty(it, s) {
+  if (s.dirty || !items.includes(it)) return;
+  s.dirty = true;
+  s.cupMesh = cyl(0.03, 0.025, 0.06, MAT.white, s.cup.x, CATALOG[it.type].cupY, s.cup.z, 10);
+  scene.add(s.cupMesh);
+  if (!S.tipsShown.dirty) { S.tipsShown.dirty = true; toast('🧽 Masalar kirlendi! Kirli masaya tıklayarak topla ya da Personel’den komi işe al.', 5000); }
+}
+function cleanItem(it) {
+  let any = false;
+  for (const s of it.seats || []) if (s.dirty) { s.dirty = false; scene.remove(s.cupMesh); s.cupMesh = null; any = true; }
+  if (any) floatText('✨', tileCenter(it.i, it.j).setY(0.7));
+  return any;
+}
+function refreshVitrin() {
+  for (const it of items) if (it.type === 'vitrin') it.mesh.userData.croissants.forEach((c, k) => c.visible = k < S.croissant);
+}
+
+// ---- yol bulma (8 yönlü BFS, köşe kesmeden) ----
+const N8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+function blockedGrid(extra) {
+  const g = Array.from({ length: UD }, () => new Array(GW).fill(false));
+  for (const it of items) g[it.j][it.i] = true;
+  if (extra) g[extra.j][extra.i] = true;
+  return g;
+}
+const free = (b, i, j) => inBounds(i, j) && !b[j][i];
+function bfs(blocked, s, isGoal) {
+  const key = (i, j) => j * GW + i, prev = new Map([[key(s.i, s.j), null]]), q = [[s.i, s.j]];
+  while (q.length) {
+    const [i, j] = q.shift();
+    if (isGoal(i, j)) {
+      const path = []; let k = key(i, j);
+      while (prev.get(k)) { path.unshift({ i: k % GW, j: Math.floor(k / GW) }); k = key(...prev.get(k)); }
+      return path;
+    }
+    for (const [di, dj] of N8) {
+      const ni = i + di, nj = j + dj;
+      if (!free(blocked, ni, nj)) continue;
+      if (di && dj && (!free(blocked, ni, j) || !free(blocked, i, nj))) continue;
+      const k = key(ni, nj); if (prev.has(k)) continue;
+      prev.set(k, [i, j]); q.push([ni, nj]);
+    }
+  }
+  return null;
+}
+function pathTiles(from, to) {
+  const p = bfs(blockedGrid(), from, (i, j) => i === to.i && j === to.j);
+  return p ? p.map(t => tileCenter(t.i, t.j)) : null;
+}
+function canPlace(type, i, j, r) {
+  if (!inBounds(i, j) || itemAt(i, j) || isDoor(i, j)) return false;
+  const b = blockedGrid({ i, j }), doors = ownedDoors();
+  const reach = new Set();
+  bfs(b, doors[0], (ii, jj) => { reach.add(jj * GW + ii); return false; });
+  const ok = (ti, tj) => free(b, ti, tj) && reach.has(tj * GW + ti);
+  if (!doors.every(d => ok(d.i, d.j))) return false;
+  for (const it of [...items, { type, i, j, r }]) {
+    if (it.type === 'bar') { const f = frontTile(it); if (!ok(f.i, f.j)) return false; }
+    if (CATALOG[it.type].seats && !DIRS.some(([di, dj]) => ok(it.i + di, it.j + dj))) return false;
+  }
+  return true;
+}
+
+// =====================================================================
+// Ekonomi yardımcıları
+// =====================================================================
+function rating() {
+  const last = S.reviews.slice(0, 60);
+  return (3.5 * 8 + last.reduce((a, r) => a + r.stars, 0)) / (8 + last.length);
+}
+const beanQ = () => BEANS[S.activeBean].q + (S.beans[S.activeBean].h > 0 ? 0.4 : 0);
+const beanStock = (id = S.activeBean) => S.beans[id].r + S.beans[id].h;
+const fairPrice = id => DRINKS[id].base * (1 + 0.15 * (beanQ() - 2.5)) * (0.65 + 0.1 * rating());
+const cupCost = id => DRINKS[id].beans * BEANS[S.activeBean].cost + DRINKS[id].milk * (MILK_PACK_COST / MILK_PACK);
+const prepTime = (id, b) => DRINKS[id].time * Math.pow(0.85, S.machine - 1) / b.speed;
+function priceAppeal() {
+  const on = Object.keys(DRINKS).filter(id => S.menu[id].on);
+  const avg = on.reduce((a, id) => a + S.menu[id].price / fairPrice(id), 0) / on.length;
+  return clamp(2 - avg, 0.3, 1.3);
+}
+const machineCost = () => [0, 1200, 2500, 4500, 8000][S.machine];
+const adsCost = () => [800, 1600, 3200, 6000, 10000][S.ads];
+const trainCost = s => 500 * s.lvl;
+const shopOpen = () => S.phase === 'open' && S.time >= OPEN;
+function spend(cost, kind = 'invest') {
+  if (S.money < cost) { toast('Yeterli paran yok.'); return false; }
+  S.money -= cost; S.today[kind] += cost; return true;
+}
+
+// =====================================================================
+// Ses (WebAudio ile üretilir, dosya yok)
+// =====================================================================
+let actx = null, userGesture = false, lastChime = 0, lastCoin = 0;
+function tone(freq, start, dur, vol, type = 'sine') {
+  if (!S.sound || !userGesture) return;
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; } }
+  const t0 = actx.currentTime + start, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function chime() { const n = performance.now(); if (n - lastChime < 500) return; lastChime = n; tone(1318.5, 0, .7, .035, 'triangle'); tone(1046.5, .13, .9, .035, 'triangle'); }
+function coin() { const n = performance.now(); if (n - lastCoin < 160) return; lastCoin = n; tone(1567, 0, .12, .02, 'triangle'); tone(2093, .06, .2, .018, 'triangle'); }
+
+// =====================================================================
+// Ekran üstü baloncuklar
+// =====================================================================
+const overlay = document.getElementById('overlay');
+const tmpV = new THREE.Vector3();
+function toScreen(v) { tmpV.copy(v).project(camera); return { x: (tmpV.x + 1) / 2 * innerWidth, y: (1 - tmpV.y) / 2 * innerHeight }; }
+function floatText(text, pos, cls = '') {
+  const el = document.createElement('div'); el.className = 'float ' + cls; el.textContent = text;
+  const p = toScreen(pos); el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+  overlay.appendChild(el); setTimeout(() => el.remove(), 1400);
+}
+function itemTag(it, html, cls = '') {
+  if (!html) { if (it.tagEl) it.tagEl.style.display = 'none'; return; }
+  if (!it.tagEl) { it.tagEl = document.createElement('div'); overlay.appendChild(it.tagEl); }
+  it.tagEl.className = 'bubble ' + cls;
+  if (it.tagHtml !== html) { it.tagEl.innerHTML = html; it.tagHtml = html; }
+  it.tagEl.style.display = 'block';
+}
+
+// =====================================================================
+// İnsanlar: yayalar ve müşteriler
+// =====================================================================
+let people = [];
+const insideCount = () => people.filter(p => p.kind === 'customer').length;
+
+class Person {
+  constructor(side, dir, type) {
+    this.side = side; this.dir = dir; this.type = type; this.kind = 'passer';
+    const T = TYPES[type];
+    this.mesh = makePerson({ acc: T.look.acc, hair: T.look.hair && Math.random() < .8 ? T.look.hair : undefined, shirt: T.look.shirt && Math.random() < .6 ? T.look.shirt : undefined });
+    this.lane = side === 'near' ? SIDEWALK_Z + rand(-.22, .22) : FAR_Z + rand(-.35, .35);
+    this.pos = V(dir > 0 ? STREET_X0 : STREET_X1, this.lane);
+    this.mesh.position.copy(this.pos); scene.add(this.mesh);
+    this.speed = rand(1.05, 1.45); this.path = []; this.onArrive = null; this.state = 'walk';
+    this.t = Math.random() * 10; this.wait = 0; this.waitTotal = 0;
+    this.bubble = null; this.bubbleKey = ''; this.sayT = 0;
+    this.name = pick(NAMES); this.f = {};
+    people.push(this);
+  }
+  tile() { return { i: clamp(Math.floor(this.pos.x), ownX0(), ownX1() - 1), j: clamp(Math.floor(this.pos.z), 0, UD - 1) }; }
+  go(points, onArrive) { this.path = points; this.onArrive = onArrive; }
+  walkOn() { this.state = 'walk'; this.go([V(this.dir > 0 ? STREET_X1 : STREET_X0, this.lane)], () => this.despawn()); }
+  despawn() { scene.remove(this.mesh); if (this.bubble) this.bubble.remove(); people = people.filter(p => p !== this); }
+  say(html, dur = 2) { this.setBubble(html); this.sayT = dur; }
+  setBubble(html, cls = '') {
+    if (this.bubbleKey === html + cls) return;
+    this.bubbleKey = html + cls;
+    if (!html) { if (this.bubble) this.bubble.style.display = 'none'; return; }
+    if (!this.bubble) { this.bubble = document.createElement('div'); overlay.appendChild(this.bubble); }
+    this.bubble.className = 'bubble ' + cls; this.bubble.innerHTML = html; this.bubble.style.display = 'block';
+    this.progEl = this.bubble.querySelector('.bar i');
+  }
+  headPos() { return V(this.pos.x, this.pos.z).setY(0.95); }
+
+  tryEnter(door) {
+    if (!shopOpen() || insideCount() >= MAX_INSIDE) return this.walkOn();
+    const bar = pickBar();
+    if (!bar) { S.today.turned++; this.say('😕 Sıra çok uzun'); return this.walkOn(); }
+    this.kind = 'customer'; this.door = door; chime();
+    this.joinQueue(bar, door, [V(door.i + .5, UD + .3), tileCenter(door.i, door.j)]);
+  }
+  joinQueue(bar, fromTile, prefix = []) {
+    this.bar = bar; bar.queue.push(this); this.state = 'toQueue';
+    const tiles = pathTiles(fromTile, frontTile(bar)) || [];
+    this.go([...prefix, ...tiles, queueSpot(bar, bar.queue.length - 1)], () => { this.state = 'queued'; });
+  }
+  rejoin() {
+    const old = this.bar;
+    if (old) { old.queue = old.queue.filter(c => c !== this); if (old.cur === this) old.cur = null; reflowQueue(old); }
+    this.bar = null;
+    const b = pickBar();
+    if (b) this.joinQueue(b, this.tile()); else this.leaveShop('😕');
+  }
+  takeaway() { if (this.cup) this.cup.material = MAT.kraft; }
+  afterServe() {
+    const T = TYPES[this.type];
+    this.cup = cyl(0.03, 0.025, 0.07, MAT.white, 0.12, 0.38, 0.08, 10); this.cup.castShadow = false;
+    this.mesh.userData.body.add(this.cup);
+    const seats = allSeats();
+    if (seats.length && seats.filter(x => x.s.dirty).length / seats.length > 0.3) addFactor(this, 'dirty', -0.35);
+    const freeSeats = seats.filter(x => !x.s.occ && !x.s.dirty);
+    if (Math.random() < T.sit) {
+      if (freeSeats.length && this.goSit(pick(freeSeats))) return;
+      addFactor(this, 'seat', -0.5);
+    }
+    this.takeaway(); this.leaveShop();
+  }
+  goSit({ it, s }) {
+    const b = blockedGrid();
+    const approaches = DIRS.map(([di, dj]) => ({ i: it.i + di, j: it.j + dj }))
+      .filter(t => free(b, t.i, t.j))
+      .sort((a, c) => tileCenter(a.i, a.j).distanceTo(s.pos) - tileCenter(c.i, c.j).distanceTo(s.pos));
+    for (const a of approaches) {
+      const tiles = pathTiles(this.tile(), a);
+      if (!tiles) continue;
+      s.occ = this; this.seat = s; this.seatItem = it; this.approach = a; this.state = 'toSeat';
+      this.go([...tiles, s.pos.clone()], () => {
+        this.state = 'sitting'; this.sitT = rand(...TYPES[this.type].sitDur);
+        this.mesh.rotation.y = s.face; sitPose(this.mesh, s.h);
+        if (this.type === 'ogrenci' && Math.random() < .7) { this.laptop = box(0.18, 0.012, 0.13, Mc(0x9aa0a6), 0, 0.03, 0.12); this.mesh.userData.legs.add(this.laptop); this.laptop.rotation.x = Math.PI / 2; }
+      });
+      return true;
+    }
+    return false;
+  }
+  leaveShop(emoji, reviewKind) {
+    if (this.kind !== 'customer' || this.state === 'leaving') return;
+    if (emoji) this.say(emoji, 2.5);
+    if (this.bar) {
+      const bar = this.bar; this.bar = null;
+      if (bar.cur === this) bar.cur = null;
+      bar.queue = bar.queue.filter(c => c !== this); reflowQueue(bar);
+    }
+    const pts = [];
+    if (this.seat) {
+      markDirty(this.seatItem, this.seat);
+      this.seat.occ = null; this.seat = null; standPose(this.mesh);
+      if (this.laptop) { this.laptop.removeFromParent(); this.laptop = null; }
+      pts.push(tileCenter(this.approach.i, this.approach.j));
+    }
+    const from = this.approach || this.tile(); this.approach = null;
+    const path = bfs(blockedGrid(), from, isDoor);
+    let door = this.door;
+    if (path) { pts.push(...path.map(t => tileCenter(t.i, t.j))); const last = path.length ? path[path.length - 1] : from; if (isDoor(last.i, last.j)) door = last; }
+    if (!door || !inBounds(door.i, door.j)) door = ownedDoors()[0];
+    pts.push(V(door.i + .5, UD + .3), V(door.i + .5, SIDEWALK_Z + rand(-.2, .2)));
+    this.publishReview(reviewKind);
+    this.state = 'leaving';
+    this.go(pts, () => { this.kind = 'passer'; this.lane = this.pos.z; this.dir = Math.random() < .5 ? 1 : -1; this.walkOn(); });
+  }
+  publishReview(kind) {
+    if (this.reviewed) return; this.reviewed = true;
+    const T = TYPES[this.type];
+    let stars, text;
+    if (kind === 'angry') { if (Math.random() > .5) return; stars = Math.random() < .6 ? 1 : 2; text = pick(TXT.angry); }
+    else if (kind === 'nostock') { if (Math.random() > .6) return; stars = 1; text = pick(TXT.nostock); }
+    else if (kind === 'refused') { if (Math.random() > .3) return; stars = 2; text = pick(TXT.refused); }
+    else if (this.sat != null) {
+      stars = clamp(Math.round(this.sat), 1, 5);
+      S.today.sats.push(clamp(this.sat, 1, 5));
+      if (Math.random() > T.review) return;
+      text = reviewText(this, stars);
+    } else return;
+    S.reviews.unshift({ stars, text, who: `${this.name} · ${T.name}`, icon: T.icon, day: S.day });
+    if (S.reviews.length > 80) S.reviews.length = 80;
+    floatText(starStr(stars), this.headPos().setY(1.15), 'star');
+  }
+  update(dt) {
+    this.t += dt;
+    if (this.path.length) {
+      const target = this.path[0];
+      const dx = target.x - this.pos.x, dz = target.z - this.pos.z, dist = Math.hypot(dx, dz), step = this.speed * dt;
+      if (dist <= step) { this.pos.x = target.x; this.pos.z = target.z; this.path.shift(); }
+      else { this.pos.x += dx / dist * step; this.pos.z += dz / dist * step; }
+      if (dist > 0.001) this.mesh.rotation.y = Math.atan2(dx, dz);
+      this.mesh.position.set(this.pos.x, Math.abs(Math.sin(this.t * 11)) * 0.03, this.pos.z);
+      if (!this.path.length && this.onArrive) { const f = this.onArrive; this.onArrive = null; f(); }
+    } else this.mesh.position.y = 0;
+
+    if (this.kind !== 'customer') { if (this.sayT > 0 && (this.sayT -= dt) <= 0) this.setBubble(''); this.placeBubble(); return; }
+    const T = TYPES[this.type];
+    if (this.state === 'toQueue' || this.state === 'queued') {
+      this.wait += dt;
+      if (this.state === 'queued') this.waitTotal += dt;
+      if (this.wait > T.patience) { S.today.angry++; this.leaveShop('😠', 'angry'); }
+    } else if (this.state === 'ordering') this.waitTotal += dt;
+    if (this.state === 'sitting' && (this.sitT -= dt) <= 0) this.leaveShop(this.sat >= 4.2 ? '😊' : '');
+
+    if (this.sayT > 0) { if ((this.sayT -= dt) <= 0) this.setBubble(''); }
+    else if (this.state === 'ordering' && this.bar) {
+      const d = DRINKS[this.bar.drinkId];
+      this.setBubble(`${d.icon} ${d.name}<div class="bar"><i></i></div>`);
+      if (this.progEl) this.progEl.style.width = Math.min(100, this.bar.prog / this.bar.need * 100) + '%';
+    } else if (this.state === 'queued' && this.wait > T.patience * .6) this.setBubble('⏰');
+    else this.setBubble('');
+    this.placeBubble();
+  }
+  placeBubble() {
+    if (!this.bubble || this.bubble.style.display === 'none') return;
+    const p = toScreen(this.headPos());
+    this.bubble.style.left = p.x + 'px'; this.bubble.style.top = p.y + 'px';
+  }
+}
+
+function queueSpot(bar, k) {
+  const f = frontTile(bar), [dx, dz] = DIRS[bar.r];
+  const p = tileCenter(f.i, f.j).add(V(dx, dz).multiplyScalar(k * 0.42 - 0.12));
+  p.x = clamp(p.x, ownX0() + .2, ownX1() - .2); p.z = clamp(p.z, .2, UD - .2);
+  return p;
+}
+function reflowQueue(bar) {
+  bar.queue.forEach((c, k) => {
+    const spot = queueSpot(bar, k);
+    if (c.state === 'queued') c.go([spot], null);
+    else if (c.state === 'toQueue' && c.path.length) c.path[c.path.length - 1] = spot;
+  });
+}
+function pickBar() {
+  return bars().filter(b => b.barista && b.queue.length < MAX_QUEUE).sort((a, b) => a.queue.length - b.queue.length)[0];
+}
+
+// ---- sipariş, memnuniyet, yorum ----
+function chooseDrink(c) {
+  const T = TYPES[c.type];
+  const avail = id => S.menu[id].on && S.milk >= DRINKS[id].milk;
+  const want = weightedPick(T.drinks);
+  let id = want;
+  if (!avail(id)) {
+    if (!S.menu[id].on) c.missed = DRINKS[want].name; else c.noMilk = true;
+    const opts = Object.keys(DRINKS).filter(avail);
+    if (!opts.length) return null;
+    id = weightedPick(Object.fromEntries(opts.map(o => [o, T.drinks[o] || 0.4])));
+  }
+  return beanStock() < DRINKS[id].beans ? 'nobeans' : id;
+}
+function consume(id) {
+  const b = S.beans[S.activeBean]; let need = DRINKS[id].beans, fresh = false;
+  const fromH = Math.min(b.h, need); b.h -= fromH; need -= fromH; if (fromH) fresh = true;
+  b.r -= need; S.milk -= DRINKS[id].milk;
+  return fresh;
+}
+function evaluate(c, barista) {
+  const T = TYPES[c.type], f = c.f = {};
+  f.quality = (BEANS[S.activeBean].q + (c.fresh ? .4 : 0) - 3) * .45 * T.qual;
+  f.atm = Math.min(.7, atmPerUnit() * .045);
+  f.charm = (barista.charm - 1) * .8;
+  const waitMin = c.waitTotal * MIN_PER_SEC; c.waitMin = Math.round(waitMin);
+  f.wait = waitMin < 8 ? .25 : -Math.min(1.6, Math.max(0, waitMin - 15) * .07);
+  const ratio = c.price / fairPrice(c.drinkId);
+  f.price = ratio > 1.02 ? -(ratio - 1) * 2.4 * T.price : ratio < .92 ? .3 * T.price : 0;
+  if (c.missed) f.missing = c.type === 'tutkun' ? -.55 : -.3;
+  if (c.noMilk) f.milk = -.3;
+  if (c.food) f.food = .2;
+  c.sat = 3.5 + Object.values(f).reduce((a, b) => a + b, 0) + rand(-.35, .35);
+}
+function addFactor(c, k, v) { c.f[k] = (c.f[k] || 0) + v; if (c.sat != null) c.sat += v; }
+function reviewText(c, stars) {
+  const fill = s => s.replace('{b}', c.baristaName || 'barista').replace('{m}', c.waitMin).replace('{d}', DRINKS[c.drinkId]?.name || 'kahve')
+    .replace('{p}', fmt(c.price || 0)).replace('{want}', c.missed || 'istediğim içecek');
+  const ent = Object.entries(c.f);
+  const pos = ent.filter(([k, v]) => v > .12 && TXT[k]?.pos.length).sort((a, b) => b[1] - a[1]);
+  const neg = ent.filter(([k, v]) => v < -.12 && TXT[k]?.neg.length).sort((a, b) => a[1] - b[1]);
+  const parts = [];
+  if (stars >= 3 && pos.length) parts.push(fill(pick(TXT[pos[0][0]].pos)));
+  if (neg.length) parts.push((parts.length ? 'Ama ' : '') + fill(pick(TXT[neg[0][0]].neg)).replace(/^./, ch => parts.length ? ch.toLowerCase() : ch));
+  if (!parts.length) parts.push(stars >= 4 ? 'Güzel bir kahve molasıydı.' : stars >= 3 ? 'Fena değil, idare eder.' : 'Beklediğim gibi değildi.');
+  return parts.join(' ');
+}
+
+// ---- baristalar ve barlar ----
+function assignBaristas() {
+  const baristas = S.staff.filter(s => s.role === 'barista').sort((a, b) => b.speed - a.speed);
+  bars().forEach((bar, k) => {
+    const b = baristas[k] || null;
+    if (bar.barista !== b) {
+      if (bar.baristaMesh) { scene.remove(bar.baristaMesh); bar.baristaMesh = null; }
+      bar.barista = b;
+      if (b) {
+        const m = makePerson({ acc: 'apron', apron: b.owner ? MAT.apronOwner : MAT.apron, shirt: b.owner ? 0xf0efe9 : 0x2b2b2e, ...(b.look || {}) });
+        m.position.copy(localToWorld(bar, 0, -0.3)); m.rotation.y = bar.r * Math.PI / 2;
+        scene.add(m); bar.baristaMesh = m;
+      }
+      if (bar.cur) { const c = bar.cur; bar.cur = null; c.state = 'queued'; }
+    }
+  });
+  for (const bar of bars()) if (!bar.barista) for (const c of [...bar.queue]) c.rejoin();
+}
+function startOrder(bar, c) {
+  const T = TYPES[c.type];
+  const id = chooseDrink(c);
+  if (id === null) { c.leaveShop('🤷'); return; }
+  if (id === 'nobeans') { S.today.angry++; c.leaveShop('❌ Kahve bitti', 'nostock'); warnOnce('beans', '⚠️ Çekirdek bitti! Stok panelinden hemen al.'); return; }
+  const price = S.menu[id].price, ratio = price / fairPrice(id);
+  if (Math.random() < Math.max(0, ratio - 1.15) * T.price * 1.6) { S.today.refused++; c.leaveShop('💸 Pahalı', 'refused'); return; }
+  c.fresh = consume(id);
+  bar.cur = c; bar.drinkId = id; bar.prog = 0; bar.need = prepTime(id, bar.barista);
+  c.state = 'ordering'; c.drinkId = id; c.price = price; c.baristaName = bar.barista.owner ? 'patron' : bar.barista.name;
+}
+function finishOrder(bar) {
+  const c = bar.cur, b = bar.barista;
+  bar.cur = null; bar.queue = bar.queue.filter(x => x !== c); c.bar = null; reflowQueue(bar);
+  c.food = hasItem('vitrin') && S.croissant > 0 && Math.random() < TYPES[c.type].food;
+  if (c.food) { S.croissant--; refreshVitrin(); }
+  evaluate(c, b);
+  const tip = Math.round(c.price * clamp((c.sat - 3.2) * .12, 0, .3) * b.charm);
+  const food = c.food ? S.foodPrice : 0;
+  S.money += c.price + tip + food;
+  S.today.revenue += c.price; S.today.tips += tip; S.today.foodRev += food; S.today.served++; S.served++;
+  floatText('+' + fmt(c.price + tip + food) + (c.food ? ' 🥐' : ''), c.headPos());
+  coin();
+  c.state = 'served';
+  c.afterServe();
+}
+function updateBars(dt) {
+  for (const bar of bars()) {
+    if (!bar.barista) { itemTag(bar, '👤 Barista yok', 'warnb'); continue; }
+    itemTag(bar, '');
+    if (!bar.cur) {
+      const c = bar.queue[0];
+      if (c && c.state === 'queued' && !c.path.length) startOrder(bar, c);
+    }
+    const body = bar.baristaMesh?.userData.body;
+    if (bar.cur) {
+      bar.prog += dt;
+      if (body) body.rotation.y = Math.sin(bar.prog * 6) * .25;
+      if (Math.random() < dt * 8) puff(localToWorld(bar, -0.18, 0.18).setY(0.7));
+      if (bar.prog >= bar.need) finishOrder(bar);
+    } else if (body) body.rotation.y *= .9;
+  }
+}
+
+// ---- buhar / duman parçacıkları ----
+const puffs = [];
+for (let k = 0; k < 50; k++) {
+  const m = new THREE.Mesh(G('puff', () => new THREE.SphereGeometry(0.035, 8, 6)), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+  m.visible = false; scene.add(m); puffs.push({ m, life: 0 });
+}
+function puff(pos, color = 0xffffff, size = 1) {
+  const p = puffs.find(p => p.life <= 0); if (!p) return;
+  p.life = 1.2; p.size = size; p.m.material.color.setHex(color); p.m.position.copy(pos).add(V(rand(-.03, .03), rand(-.03, .03))); p.m.visible = true;
+}
+function updatePuffs(dt) {
+  for (const p of puffs) if (p.life > 0) {
+    p.life -= dt; p.m.position.y += dt * .35; p.m.position.x += dt * .05;
+    const s = p.size * (1 + (1.2 - p.life) * 2); p.m.scale.setScalar(s);
+    p.m.material.opacity = Math.max(0, p.life / 1.2) * .5;
+    if (p.life <= 0) p.m.visible = false;
+  }
+}
+
+// ---- kavurma ----
+function updateRoasters(dt) {
+  const roasting = S.time >= OPEN - 30 && S.time < CLOSE;
+  for (const it of items) if (it.type === 'roaster') {
+    const ids = [S.activeBean, ...Object.keys(BEANS).filter(k => k !== S.activeBean)];
+    const id = ids.find(k => S.beans[k].g > 0);
+    const on = roasting && id;
+    if (on) {
+      it.acc = (it.acc || 0) + dt / 0.8;
+      while (it.acc >= 1 && S.beans[id].g > 0) { it.acc--; S.beans[id].g--; S.beans[id].h++; }
+      it.mesh.userData.drum.rotation.z += dt * 4;
+      it.mesh.userData.paddle.rotation.y += dt * 3;
+      if (Math.random() < dt * 3) puff(localToWorld(it, -0.19, -0.28).setY(1.15), 0x9a9a9a, 1.5);
+    }
+  }
+}
+
+// ---- komiler ----
+let workers = [];
+class Worker {
+  constructor(staff) {
+    this.staff = staff;
+    this.mesh = makePerson({ acc: 'apron', shirt: MAT.komi, apron: Mc(0x222222) });
+    const d = ownedDoors()[0]; this.pos = tileCenter(d.i, d.j - 1);
+    this.mesh.position.copy(this.pos); scene.add(this.mesh);
+    this.path = []; this.state = 'idle'; this.cool = 1; this.t = 0;
+  }
+  tile() { return { i: clamp(Math.floor(this.pos.x), ownX0(), ownX1() - 1), j: clamp(Math.floor(this.pos.z), 0, UD - 1) }; }
+  update(dt) {
+    this.t += dt;
+    if (this.path.length) {
+      const target = this.path[0], dx = target.x - this.pos.x, dz = target.z - this.pos.z, dist = Math.hypot(dx, dz), step = 1.4 * this.staff.speed * dt;
+      if (dist <= step) { this.pos.x = target.x; this.pos.z = target.z; this.path.shift(); } else { this.pos.x += dx / dist * step; this.pos.z += dz / dist * step; }
+      if (dist > .001) this.mesh.rotation.y = Math.atan2(dx, dz);
+      this.mesh.position.set(this.pos.x, Math.abs(Math.sin(this.t * 11)) * .03, this.pos.z);
+      if (!this.path.length && this.onArrive) { const f = this.onArrive; this.onArrive = null; f(); }
+      return;
+    }
+    this.mesh.position.y = 0;
+    if (this.state === 'cleaning') {
+      this.mesh.userData.body.rotation.y = Math.sin(this.t * 10) * .3;
+      if ((this.timer -= dt) <= 0) {
+        this.mesh.userData.body.rotation.y = 0;
+        if (items.includes(this.target)) cleanItem(this.target);
+        this.target.cleaner = null; this.target = null; this.state = 'idle'; this.cool = .5;
+      }
+    } else if (this.state === 'idle' && (this.cool -= dt) <= 0) {
+      this.cool = 1;
+      const b = blockedGrid();
+      const dirty = items.filter(it => it.seats && it.seats.some(s => s.dirty) && !it.cleaner)
+        .sort((a, c) => tileCenter(a.i, a.j).distanceTo(this.pos) - tileCenter(c.i, c.j).distanceTo(this.pos));
+      for (const it of dirty) {
+        const a = DIRS.map(([di, dj]) => ({ i: it.i + di, j: it.j + dj })).find(t => free(b, t.i, t.j) && pathTiles(this.tile(), t));
+        if (!a) continue;
+        it.cleaner = this; this.target = it; this.state = 'walking';
+        this.path = pathTiles(this.tile(), a);
+        this.onArrive = () => { this.state = 'cleaning'; this.timer = 1.4 / this.staff.speed; const c = tileCenter(it.i, it.j); this.mesh.rotation.y = Math.atan2(c.x - this.pos.x, c.z - this.pos.z); };
+        if (!this.path.length) { const f = this.onArrive; this.onArrive = null; f(); }
+        break;
+      }
+    }
+  }
+  remove() { scene.remove(this.mesh); if (this.target) this.target.cleaner = null; }
+}
+function syncWorkers() {
+  const komis = S.staff.filter(s => s.role === 'komi');
+  for (const w of workers) if (!komis.includes(w.staff)) w.remove();
+  workers = workers.filter(w => komis.includes(w.staff));
+  for (const s of komis) if (!workers.some(w => w.staff === s)) workers.push(new Worker(s));
+}
+
+// =====================================================================
+// Cadde hayatı: arabalar, kedi, komşular
+// =====================================================================
+const cars = [];
+const CAR_COLORS = [0xc0392b, 0x2980b9, 0xf1c40f, 0xecf0f1, 0x2c3e50, 0x16a085, 0x8e44ad, 0xe67e22];
+function makeCar(color) {
+  const g = new THREE.Group(), m = Mc(color);
+  g.add(box(1.1, 0.26, 0.5, m, 0, 0.21, 0));
+  g.add(box(0.6, 0.22, 0.44, Mc(0x37414a), -0.05, 0.45, 0));
+  g.add(box(0.62, 0.03, 0.46, m, -0.05, 0.575, 0));
+  for (const [x, z] of [[-.35, -.25], [.35, -.25], [-.35, .25], [.35, .25]]) { const w = cyl(0.1, 0.1, 0.07, MAT.black, x, 0.1, z, 12); w.rotation.x = Math.PI / 2; g.add(w); }
+  g.add(box(0.02, 0.06, 0.1, MAT.headlight, 0.56, 0.24, -0.15), box(0.02, 0.06, 0.1, MAT.headlight, 0.56, 0.24, 0.15));
+  return g;
+}
+for (let k = 0; k < 6; k++) {
+  const dir = k % 2 ? -1 : 1, car = makeCar(pick(CAR_COLORS));
+  car.position.set(rand(STREET_X0 - 6, STREET_X1 + 6), -0.07, dir > 0 ? UD + 2.65 : UD + 4.5);
+  car.rotation.y = dir > 0 ? 0 : Math.PI;
+  scene.add(car); cars.push({ car, dir, speed: rand(2.2, 3.6) });
+}
+function makeCat() {
+  const g = new THREE.Group(), o = Mc(0xe39a4a);
+  g.add(box(0.22, 0.09, 0.09, o, 0, 0.1, 0));
+  g.add(box(0.09, 0.08, 0.08, o, 0.14, 0.16, 0));
+  g.add(box(0.02, 0.03, 0.02, o, 0.15, 0.215, -0.025), box(0.02, 0.03, 0.02, o, 0.15, 0.215, 0.025));
+  const tail = box(0.14, 0.02, 0.02, o, -0.15, 0.17, 0); tail.rotation.z = 0.8; g.add(tail);
+  for (const [x, z] of [[-.08, -.03], [-.08, .03], [.08, -.03], [.08, .03]]) g.add(box(0.025, 0.06, 0.025, o, x, 0.03, z));
+  return g;
+}
+const cat = { mesh: makeCat(), pos: V(4, UD + 0.4), target: null, wait: 2 };
+scene.add(cat.mesh);
+function updateWorld(dt, h) {
+  for (const c of cars) {
+    c.car.position.x += c.dir * c.speed * dt;
+    if (c.dir > 0 && c.car.position.x > STREET_X1 + 8) c.car.position.x = STREET_X0 - 8;
+    if (c.dir < 0 && c.car.position.x < STREET_X0 - 8) c.car.position.x = STREET_X1 + 8;
+  }
+  if (cat.wait > 0) { cat.wait -= dt; cat.mesh.position.y = -0.02; }
+  else {
+    if (!cat.target) cat.target = V(rand(STREET_X0 + 4, STREET_X1 - 4), UD + rand(0.15, 0.5));
+    const dx = cat.target.x - cat.pos.x, dz = cat.target.z - cat.pos.z, d = Math.hypot(dx, dz);
+    if (d < .05) { cat.target = null; cat.wait = rand(4, 12); }
+    else { cat.pos.x += dx / d * .7 * dt; cat.pos.z += dz / d * .7 * dt; cat.mesh.rotation.y = Math.atan2(dx, dz) - Math.PI / 2; cat.mesh.position.y = Math.abs(Math.sin(performance.now() / 90)) * .015; }
+  }
+  cat.mesh.position.x = cat.pos.x; cat.mesh.position.z = cat.pos.z;
+  for (const n of npcs) n.userData.body.rotation.y = Math.sin(performance.now() / 1500 + n.position.x) * .4;
+  for (const t of barberPoles) t.offset.y = (t.offset.y + dt * .6) % 1;
+  for (const it of items) if (it.type === 'pikap') it.mesh.userData.spin.rotation.y += dt * 3;
+}
+
+// ---- gün ışığı ----
+const SKY = [
+  [5, 0x2a2f45, .35, 0, 0xff9a5a], [7, 0xe9cdb0, .95, .9, 0xffb27a], [9, 0xefe7dc, 1.5, 2.0, 0xfff0dd],
+  [13, 0xf1ebe2, 1.7, 2.5, 0xffffff], [17, 0xefe0cc, 1.4, 1.9, 0xffd8a8], [19, 0xe0b48e, .95, .9, 0xff9a5a],
+  [20.5, 0x4a4a68, .5, .15, 0xff8050], [22, 0x262b42, .38, 0, 0xff8050], [26, 0x262b42, .38, 0, 0xff8050],
+];
+const _c1 = new THREE.Color(), _c2 = new THREE.Color();
+function setDayLight(h) {
+  let k = 0; while (k < SKY.length - 2 && h > SKY[k + 1][0]) k++;
+  const a = SKY[k], b = SKY[k + 1], t = clamp((h - a[0]) / (b[0] - a[0]), 0, 1);
+  scene.background.lerpColors(_c1.set(a[1]), _c2.set(b[1]), t);
+  hemi.intensity = lerp(a[2], b[2], t);
+  sun.intensity = lerp(a[3], b[3], t);
+  sun.color.lerpColors(_c1.set(a[4]), _c2.set(b[4]), t);
+  const az = clamp((h - 6) / 14, 0, 1) * Math.PI;
+  sun.position.set(GW / 2 - Math.cos(az) * 16, 5 + Math.sin(az) * 12, UD / 2 + 12);
+  const night = clamp((h - 18) / 2, 0, 1);
+  streetLights.forEach(l => l.intensity = night * 3);
+  MAT.lampHead.emissiveIntensity = .2 + night * 2;
+  MAT.headlight.emissiveIntensity = .1 + night * 2;
+  S.units.forEach((st, u) => unitLights[u].intensity = st === 'own' ? night * 3.2 : st === 'occupied' && h < 21 ? night * 2.2 : 0);
+}
+
+// =====================================================================
+// Gün döngüsü
+// =====================================================================
+function spawnPasser(h) {
+  if (people.length >= 80) return;
+  const near = Math.random() < .6, dir = Math.random() < .5 ? 1 : -1;
+  const type = weightedPick(typeWeights(h));
+  const p = new Person(near ? 'near' : 'far', dir, type);
+  if (near && S.phase === 'open' && Math.random() < enterChance(type)) {
+    const door = pick(ownedDoors());
+    p.go([V(door.i + .5, p.lane)], () => p.tryEnter(door));
+  } else p.walkOn();
+}
+function typeWeights(h) {
+  return {
+    ofis: h < 10 ? 5 : (h >= 12 && h < 14) ? 3 : (h >= 17 && h < 19) ? 2.5 : .6,
+    ogrenci: h < 10 ? .6 : h < 12 ? 1.5 : 2.5,
+    tutkun: .6 + Math.max(0, beanQ() - 2.5) * .6,
+    emekli: (h >= 9 && h < 17) ? 1.8 : .4,
+    turist: (h >= 10 && h < 20) ? .3 + Math.max(0, rating() - 3.8) * 2.5 : .1,
+  };
+}
+function enterChance(type) {
+  let p = .3 * Math.pow(rating() / 3.5, 2.2);
+  p *= 1 + Math.min(.6, atmPerUnit() * .04);
+  p *= 1 + .2 * S.ads;
+  p *= priceAppeal();
+  p *= 1 + .2 * (ownedCount() - 1);
+  if (type === 'tutkun') p *= .5 + Math.max(0, beanQ() - 2.5) * .45;
+  return Math.min(.85, p);
+}
+function passerRate(h) {
+  const base = h < 7.5 ? .15 : h < 10 ? .7 : h < 12 ? .4 : h < 14 ? .65 : h < 17 ? .4 : h < 19 ? .6 : h < 22 ? .35 : .12;
+  return base * (1 + .12 * S.ads + .1 * (ownedCount() - 1));
+}
+
+function genCandidates() {
+  S.candidates = Array.from({ length: 3 }, () => {
+    const role = Math.random() < .7 ? 'barista' : 'komi';
+    const speed = +rand(.8, 1.35).toFixed(2), charm = +rand(.75, 1.4).toFixed(2);
+    const wage = (role === 'barista' ? 220 : 150) + (speed - .8) * 300 + (charm - .75) * 200;
+    return { id: S.nextId++, name: pick(NAMES), role, speed, charm, wage: Math.round(wage / 10) * 10, lvl: 1 };
+  });
+}
+function endDay() {
+  for (const p of [...people]) if (p.kind === 'customer') { p.leaveShop(); }
+  const rent = S.units.reduce((a, st, u) => a + (st === 'own' ? UNITS[u].rent : 0), 0);
+  const wages = S.staff.reduce((a, s) => a + s.wage, 0);
+  const waste = hasItem('vitrin') ? S.croissant : 0;
+  S.croissant = 0; refreshVitrin();
+  S.money -= rent + wages;
+  const T = S.today, income = T.revenue + T.foodRev + T.tips;
+  const avg = T.sats.length ? T.sats.reduce((a, b) => a + b, 0) / T.sats.length : null;
+  const todays = S.reviews.filter(r => r.day === S.day);
+  S.lastReport = { day: S.day, income, revenue: T.revenue, foodRev: T.foodRev, tips: T.tips, rent, wages, stock: T.stock, invest: T.invest,
+    waste, net: income - rent - wages - T.stock, served: T.served, angry: T.angry, turned: T.turned, refused: T.refused, avg,
+    best: todays.slice().sort((a, b) => b.stars - a.stars)[0] || null, worst: todays.slice().sort((a, b) => a.stars - b.stars)[0] || null };
+  S.phase = 'report'; save(); showReport();
+}
+function startDay() {
+  S.day++; S.time = DAY_START; S.phase = 'open'; S.today = newToday();
+  genCandidates();
+  const news = [];
+  if (S.units[3] === 'occupied' && S.day >= 5 && rating() >= 4.0) { S.units[3] = 'rent'; news.push('✂️ Kuaför Ahmet emekli oldu, dükkanı kiralık!'); }
+  if (S.units[0] === 'occupied' && S.day >= 10 && S.served >= 600) { S.units[0] = 'rent'; news.push('🏪 Bakkal Hasan Amca dükkanı devrediyor, artık kiralık!'); }
+  if (!S.geisha && S.day >= 4 && rating() >= 4.3) { S.geisha = true; news.push('🌱 Nadir çekirdek tedarikçisi seninle çalışmak istiyor: Panama Geisha açıldı!'); }
+  if (news.length) buildUnits();
+  if (hasItem('vitrin') && S.croissantOrder > 0) {
+    const cost = S.croissantOrder * FOOD.cost;
+    if (S.money >= cost) { S.money -= cost; S.today.stock += cost; S.croissant = S.croissantOrder; refreshVitrin(); news.push(`🥐 ${S.croissantOrder} kruvasan teslim edildi.`); }
+    else news.push('🥐 Para yetmediği için kruvasan siparişi verilemedi.');
+  }
+  hideModal(); save();
+  toast(`☀️ Gün ${S.day} başladı!` + (news.length ? ' ' + news.join(' ') : ''), news.length ? 6000 : 2600);
+}
+function autoSupply() {
+  if (!S.autoSupply) return;
+  const id = S.activeBean, b = S.beans[id], roast = hasItem('roaster');
+  if (b.r + b.h + b.g < 40) {
+    const cost = Math.round(BEANS[id].cost * BAG * (roast ? .55 : 1) * 1.1);
+    if (S.money >= cost) { S.money -= cost; S.today.stock += cost; if (roast) b.g += BAG; else b.r += BAG; toast(`🚚 Otomatik tedarik: ${BAG} doz ${BEANS[id].name}${roast ? ' (çiğ)' : ''}`); }
+  }
+  const milkOn = Object.keys(DRINKS).some(k => S.menu[k].on && DRINKS[k].milk);
+  if (milkOn && S.milk < 15) {
+    const cost = Math.round(MILK_PACK_COST * 1.1);
+    if (S.money >= cost) { S.money -= cost; S.today.stock += cost; S.milk += MILK_PACK; toast('🚚 Otomatik tedarik: süt'); }
+  }
+}
+const warned = {};
+function warnOnce(key, msg) { if (warned[key]) return; warned[key] = true; toast(msg, 4000); setTimeout(() => warned[key] = false, 30000); }
+
+// =====================================================================
+// Hedefler
+// =====================================================================
+const GOALS = [
+  { id: 's20', text: '20 müşteriye servis yap', reward: 300, check: () => S.served >= 20 },
+  { id: 'hire', text: 'İlk personelini işe al', reward: 500, check: () => S.staff.length > 1 },
+  { id: 'latte', text: "Latte'yi menüye ekle", reward: 300, check: () => S.menu.latte.on },
+  { id: 'r40', text: '⭐ 4.0 puana ulaş', reward: 800, check: () => S.reviews.length >= 10 && rating() >= 4 },
+  { id: 'expand', text: 'Yan dükkanı kirala', reward: 1000, check: () => ownedCount() >= 2 },
+  { id: 'd4000', text: 'Bir günde 4.000 ₺ ciro yap', reward: 1000, check: () => S.today.revenue + S.today.foodRev + S.today.tips >= 4000 },
+  { id: 'vitrin', text: 'Pasta vitrini koy', reward: 500, check: () => hasItem('vitrin') },
+  { id: 'roast', text: 'Kavurma makinesi al', reward: 1500, check: () => hasItem('roaster') },
+  { id: 'v60', text: "V60'ı menüye ekle", reward: 1000, check: () => S.menu.v60.on },
+  { id: 'r45', text: '⭐ 4.5 puana ulaş', reward: 2000, check: () => S.reviews.length >= 30 && rating() >= 4.5 },
+  { id: 's1000', text: '1.000 servis', reward: 3000, check: () => S.served >= 1000 },
+  { id: 'all', text: 'Tüm caddeyi kirala', reward: 5000, check: () => ownedCount() === NU },
+  { id: 'd15000', text: 'Bir günde 15.000 ₺ ciro yap', reward: 5000, check: () => S.today.revenue + S.today.foodRev + S.today.tips >= 15000 },
+];
+function checkGoals() {
+  for (const g of GOALS) if (!S.goalsDone.includes(g.id) && g.check()) {
+    S.goalsDone.push(g.id); S.money += g.reward; coin();
+    toast(`🎯 Hedef tamamlandı: ${g.text} (+${fmt(g.reward)})`, 4000);
+  }
+}
+
+// =====================================================================
+// Arayüz
+// =====================================================================
+const $ = id => document.getElementById(id);
+let mode = 'none', buildType = null, buildRot = 0, speed = 1, tab = null, moving = null, lastPanelHtml = '';
+const dis = cost => S.money < cost ? 'disabled' : '';
+
+const toastQ = []; let toastBusy = false;
+function toast(msg, dur = 2600) { toastQ.push([msg, dur]); if (!toastBusy) nextToast(); }
+function nextToast() {
+  const t = $('toast'); const n = toastQ.shift();
+  if (!n) { toastBusy = false; t.style.opacity = 0; return; }
+  toastBusy = true; t.textContent = n[0]; t.style.opacity = 1;
+  setTimeout(nextToast, n[1]);
+}
+
+// ---- mağaza çubuğu ----
+const shop = $('shop');
+for (const [m, label, icon] of [['move', 'Taşı', '✋'], ['sell', 'Sat', '💸']]) {
+  const b = document.createElement('button'); b.className = 'card'; b.dataset.mode = m;
+  b.innerHTML = `<span class="ic">${icon}</span><span class="nm">${label}</span><span class="pr">${m === 'sell' ? '%50 iade' : 'ücretsiz'}</span>`;
+  b.onclick = () => setMode(mode === m ? 'none' : m);
+  shop.appendChild(b);
+}
+shop.appendChild(Object.assign(document.createElement('div'), { className: 'shopsep' }));
+for (const [type, def] of Object.entries(CATALOG)) {
+  const b = document.createElement('button'); b.className = 'card'; b.dataset.type = type;
+  b.title = `${def.name}${def.amb ? ` · Atmosfer +${def.amb}` : ''}`;
+  b.innerHTML = `<span class="ic">${def.icon}</span><span class="nm">${def.name}</span><span class="pr">${fmt(def.price)}</span>`;
+  b.onclick = () => setMode(mode === 'build' && buildType === type && !moving ? 'none' : 'build', type);
+  shop.appendChild(b);
+}
+
+document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => setSpeed(+b.dataset.speed));
+function setSpeed(s) { speed = s; document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('active', +x.dataset.speed === s)); }
+document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = tab === b.dataset.tab ? null : b.dataset.tab; renderPanel(true); });
+
+// ---- paneller ----
+const panel = $('panel');
+const PANELS = {
+  staff() {
+    const nb = bars().length, nBar = S.staff.filter(s => s.role === 'barista').length;
+    let h = `<h3>👥 Personel</h3><p class="note">Her espresso barın başında bir barista olmalı. Komiler kirli masaları toplar. Maaşlar gün sonunda ödenir.</p>`;
+    if (nBar < nb) h += `<p class="warnp">⚠️ ${nb - nBar} bar boşta, barista işe al.</p>`;
+    if (nBar > nb) h += `<p class="warnp">⚠️ ${nBar - nb} barista boşta. Yeni bir espresso bar koyabilirsin.</p>`;
+    for (const s of S.staff) h += `<div class="row"><div>${s.role === 'barista' ? '☕' : '🧹'} <b>${s.name}</b>${s.owner ? ' <span class="tag">patron</span>' : ''}
+      <small>${s.role === 'barista' ? 'Barista' : 'Komi'} · Hız ${s.speed.toFixed(2)}× · Güler yüz ${s.charm.toFixed(2)} · Sv ${s.lvl}<br>${s.wage ? fmt(s.wage) + ' / gün' : 'maaş yok'}</small></div>
+      <div class="btns">${s.lvl < 5 ? `<button data-act="train" data-arg="${s.id}" ${dis(trainCost(s))}>Eğit ${fmt(trainCost(s))}</button>` : ''}${s.owner ? '' : `<button data-act="fire" data-arg="${s.id}">Çıkar</button>`}</div></div>`;
+    h += `<h3>Adaylar <small>· her sabah yenilenir</small></h3>`;
+    if (!S.candidates.length) h += `<p class="note">Bugünlük başka aday yok.</p>`;
+    for (const c of S.candidates) h += `<div class="row"><div>${c.role === 'barista' ? '☕' : '🧹'} <b>${c.name}</b>
+      <small>${c.role === 'barista' ? 'Barista' : 'Komi'} · Hız ${c.speed.toFixed(2)}× · Güler yüz ${c.charm.toFixed(2)}<br>${fmt(c.wage)} / gün</small></div>
+      <div class="btns"><button class="primary" data-act="hire" data-arg="${c.id}">İşe al</button></div></div>`;
+    return h;
+  },
+  menu() {
+    let h = `<h3>📋 Menü ve fiyatlar</h3><p class="note">Adil fiyatın üstüne çıkarsan müşteriler memnuniyetsizleşir ve bazıları vazgeçer. Altında kalırsan daha çok kişi uğrar. Adil fiyat, çekirdek kalitesi ve puanınla birlikte yükselir.</p>`;
+    for (const [id, d] of Object.entries(DRINKS)) {
+      const m = S.menu[id];
+      if (m.on) {
+        const fair = fairPrice(id), r = m.price / fair;
+        h += `<div class="row"><div>${d.icon} <b>${d.name}</b><small>Maliyet ~${fmt(cupCost(id))} · Adil fiyat ~<span class="${r > 1.1 ? 'bad' : r < .95 ? 'good' : ''}">${fmt(fair)}</span></small></div>
+          <div class="btns"><button data-act="price" data-arg="${id}:-5">−</button><span class="price">${m.price}₺</span><button data-act="price" data-arg="${id}:5">+</button></div></div>`;
+      } else h += `<div class="row"><div>${d.icon} ${d.name}<small>${d.base}₺ · ${d.beans} doz çekirdek${d.milk ? ' + süt' : ''} · ${d.time} sn</small></div>
+          <div class="btns"><button data-act="unlock" data-arg="${id}" ${dis(d.cost)}>Ekle ${fmt(d.cost)}</button></div></div>`;
+    }
+    if (hasItem('vitrin')) h += `<div class="row"><div>🥐 <b>Kruvasan</b><small>Maliyet ${fmt(FOOD.cost)} · Kahvenin yanında satılır</small></div>
+      <div class="btns"><button data-act="foodprice" data-arg="-5">−</button><span class="price">${S.foodPrice}₺</span><button data-act="foodprice" data-arg="5">+</button></div></div>`;
+    else h += `<p class="note" style="margin-top:8px">🥐 Kruvasan satmak için bir <b>Pasta Vitrini</b> koy.</p>`;
+    return h;
+  },
+  stock() {
+    const roast = hasItem('roaster');
+    let h = `<h3>🫘 Çekirdek</h3><p class="note">Seçili çekirdek bütün içeceklerde kullanılır. Kaliteli çekirdek müşteriyi memnun eder ve adil fiyatı artırır.${roast ? ' Kendi kavurduğun taze çekirdek +0.4 kalite verir.' : ''}</p>`;
+    for (const [id, b] of Object.entries(BEANS)) {
+      const st = S.beans[id], active = S.activeBean === id;
+      if (id === 'geisha' && !S.geisha) { h += `<div class="row"><div>🔒 ${b.name}<small>Puanın ⭐4.3 olunca (4. günden sonra) tedarikçi açılır.</small></div></div>`; continue; }
+      h += `<div class="row"><div><b>${b.name}</b>${active ? ' <span class="tag">kullanılıyor</span>' : ''}
+        <small>${b.note} · Kalite ${b.q.toFixed(1)} · ${fmt(b.cost)}/doz<br>Stok: <b class="${active && st.r + st.h < 25 ? 'low' : ''}">${st.r + st.h}</b> doz${st.h ? ` (taze ${st.h})` : ''}${roast ? ` · çiğ ${st.g}` : ''}</small></div>
+        <div class="btns">${active ? '' : `<button data-act="bean" data-arg="${id}">Kullan</button>`}
+        <button data-act="buyR" data-arg="${id}" ${dis(b.cost * BAG)}>+${BAG} ${fmt(b.cost * BAG)}</button>
+        ${roast ? `<button data-act="buyG" data-arg="${id}" ${dis(Math.round(b.cost * BAG * .55))}>+${BAG} çiğ ${fmt(Math.round(b.cost * BAG * .55))}</button>` : ''}</div></div>`;
+    }
+    h += `<h3>🥛 Süt</h3><div class="row"><div>Süt<small>Latte ve Flat White için · Stok: <b class="${S.milk < 10 ? 'low' : ''}">${S.milk}</b></small></div>
+      <div class="btns"><button data-act="milk" ${dis(MILK_PACK_COST)}>+${MILK_PACK} ${fmt(MILK_PACK_COST)}</button></div></div>`;
+    if (hasItem('vitrin')) h += `<h3>🥐 Kruvasan</h3><div class="row"><div>Bugünkü stok: <b>${S.croissant}</b><small>Satılmayanlar gün sonunda çöpe gider. Her sabah otomatik sipariş:</small></div>
+      <div class="btns"><button data-act="corder" data-arg="-2">−</button><span class="price">${S.croissantOrder}</span><button data-act="corder" data-arg="2">+</button>
+      <button data-act="croissant" ${dis(10 * FOOD.cost)}>+10 şimdi ${fmt(10 * FOOD.cost)}</button></div></div>`;
+    h += `<p class="note" style="margin-top:8px">${S.autoSupply ? '🚚 Otomatik tedarik açık: çekirdek ve süt azalınca %10 farkla kendiliğinden sipariş verilir.' : '🚚 Otomatik tedarik, Geliştir panelinden alınabilir.'}</p>`;
+    return h;
+  },
+  upgrades() {
+    let h = `<h3>⬆️ Geliştirmeler</h3>`;
+    h += `<div class="row"><div>⚙️ <b>Espresso makinesi</b> · Sv ${S.machine}/5<small>Bütün içecekler %15 daha hızlı hazırlanır</small></div>
+      <div class="btns">${S.machine < 5 ? `<button data-act="up" data-arg="machine" ${dis(machineCost())}>${fmt(machineCost())}</button>` : '<small>MAKS</small>'}</div></div>`;
+    h += `<div class="row"><div>📣 <b>Sosyal medya</b> · Sv ${S.ads}/5<small>Caddeden geçen kişi sayısı ve içeri girme ihtimali artar</small></div>
+      <div class="btns">${S.ads < 5 ? `<button data-act="up" data-arg="ads" ${dis(adsCost())}>${fmt(adsCost())}</button>` : '<small>MAKS</small>'}</div></div>`;
+    h += `<div class="row"><div>🚚 <b>Otomatik tedarik</b><small>Çekirdek ve süt bitmeden kendiliğinden sipariş verilir (%10 fark)</small></div>
+      <div class="btns">${S.autoSupply ? '<small>✔ Aktif</small>' : `<button data-act="up" data-arg="auto" ${dis(2000)}>${fmt(2000)}</button>`}</div></div>`;
+    h += `<h3>✨ Atmosfer</h3><p class="note">Toplam ${atmosphere()} · dükkan başına ${atmPerUnit().toFixed(1)}. Bitki, raf, koltuk ve pikap gibi eşyalar atmosferi artırır. Atmosfer arttıkça müşteri ve memnuniyet de artar.</p>`;
+    return h;
+  },
+  street() {
+    let h = `<h3>🏠 Cadde</h3><p class="note">Yanındaki dükkan kiralık olunca kiralayıp duvarı yıkabilirsin. Büyük vitrin daha çok müşteri çeker.</p>`;
+    S.units.forEach((st, u) => {
+      const U = UNITS[u], adj = u === ownMinU - 1 || u === ownMaxU + 1;
+      if (st === 'own') h += `<div class="row"><div>✅ <b>${u === 1 ? 'Çekirdek (ilk dükkan)' : 'Çekirdek · ek alan'}</b><small>Kira ${fmt(U.rent)} / gün</small></div></div>`;
+      else if (st === 'occupied') h += `<div class="row"><div>${U.kind === 'bakkal' ? '🏪' : '✂️'} <b>${U.name}</b><small>${U.hint}</small></div></div>`;
+      else h += `<div class="row"><div>🔑 <b>Kiralık dükkan</b><small>Depozito ${fmt(U.deposit)} · Kira ${fmt(U.rent)} / gün${adj ? '' : '<br>Önce aradaki dükkanı kiralamalısın.'}</small></div>
+        <div class="btns"><button class="primary" data-act="rent" data-arg="${u}" ${adj ? dis(U.deposit) : 'disabled'}>Kirala</button></div></div>`;
+    });
+    const rent = S.units.reduce((a, st, u) => a + (st === 'own' ? UNITS[u].rent : 0), 0), wages = S.staff.reduce((a, s) => a + s.wage, 0);
+    h += `<p class="note" style="margin-top:8px">Günlük sabit gider: kira ${fmt(rent)} + maaşlar ${fmt(wages)} = <b>${fmt(rent + wages)}</b></p>`;
+    return h;
+  },
+  reviews() {
+    const r = rating(), n = S.reviews.length;
+    let h = `<h3>💬 Yorumlar</h3><div><span class="big">${r.toFixed(2)}</span> <span class="stars">${starStr(r)}</span><br><small class="note">${n} yorum. Puan, son 60 yorumun ortalamasıdır ve kaç kişinin içeri gireceğini doğrudan etkiler.</small></div>`;
+    if (!n) h += `<p class="note">Henüz yorum yok.</p>`;
+    for (const rv of S.reviews.slice(0, 30)) h += `<div class="rev"><span class="stars">${starStr(rv.stars)}</span> <span class="who">${rv.icon} ${rv.who} · Gün ${rv.day}</span><p>${rv.text}</p></div>`;
+    return h;
+  },
+  goals() {
+    let h = `<h3>🎯 Hedefler</h3>`;
+    for (const g of GOALS) { const done = S.goalsDone.includes(g.id); h += `<div class="row"><div>${done ? '✅' : '⬜'} ${g.text}</div><div class="btns"><small class="${done ? 'good' : ''}">+${fmt(g.reward)}</small></div></div>`; }
+    return h;
+  },
+  settings() {
+    return `<h3>⚙️ Ayarlar</h3>
+      <div class="row"><div>Ses efektleri<small>Kapı zili ve kasa sesi</small></div><div class="btns"><button data-act="sound">${S.sound ? '🔊 Açık' : '🔇 Kapalı'}</button></div></div>
+      <div class="row"><div>Kısayollar<small>R: döndür · Esc: iptal · S: sat · M: taşı · 1–9: eşya seç · Boşluk: duraklat · Sürükle: kaydır · Tekerlek: yakınlaştır</small></div></div>
+      <div class="row"><div>Oyunu sıfırla<small>Bütün ilerleme silinir</small></div><div class="btns"><button data-act="reset">🔄 Sıfırla</button></div></div>`;
+  },
+};
+function renderPanel(force) {
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  if (!tab) { panel.style.display = 'none'; lastPanelHtml = ''; return; }
+  const html = PANELS[tab]();
+  if (force || html !== lastPanelHtml) { panel.innerHTML = html; lastPanelHtml = html; }
+  panel.style.display = 'block';
+}
+const ACT = {
+  hire(id) {
+    const c = S.candidates.find(x => x.id === +id); if (!c) return;
+    S.staff.push(c); S.candidates = S.candidates.filter(x => x !== c);
+    assignBaristas(); syncWorkers(); toast(`👋 ${c.name} ekibe katıldı!`);
+  },
+  fire(id) {
+    const s = S.staff.find(x => x.id === +id); if (!s || s.owner) return;
+    if (!confirm(`${s.name} işten çıkarılsın mı?`)) return;
+    S.staff = S.staff.filter(x => x !== s); assignBaristas(); syncWorkers();
+  },
+  train(id) {
+    const s = S.staff.find(x => x.id === +id); if (!s || s.lvl >= 5 || !spend(trainCost(s))) return;
+    s.lvl++; s.speed = +(s.speed + .08).toFixed(2); s.charm = +(s.charm + .08).toFixed(2); assignBaristas();
+    toast(`📚 ${s.name} eğitimi tamamladı (Sv ${s.lvl})`);
+  },
+  unlock(id) { if (!spend(DRINKS[id].cost)) return; S.menu[id].on = true; refreshMenuBoard(); toast(`${DRINKS[id].icon} ${DRINKS[id].name} menüye eklendi!`); },
+  price(arg) { const [id, d] = arg.split(':'); S.menu[id].price = clamp(S.menu[id].price + +d, 10, 500); refreshMenuBoard(); },
+  foodprice(d) { S.foodPrice = clamp(S.foodPrice + +d, 30, 300); },
+  bean(id) { S.activeBean = id; toast(`🫘 Artık ${BEANS[id].name} kullanılıyor.`); },
+  buyR(id) { const c = BEANS[id].cost * BAG; if (spend(c, 'stock')) S.beans[id].r += BAG; },
+  buyG(id) { const c = Math.round(BEANS[id].cost * BAG * .55); if (spend(c, 'stock')) S.beans[id].g += BAG; },
+  milk() { if (spend(MILK_PACK_COST, 'stock')) S.milk += MILK_PACK; },
+  croissant() { if (spend(10 * FOOD.cost, 'stock')) { S.croissant += 10; refreshVitrin(); } },
+  corder(d) { S.croissantOrder = clamp(S.croissantOrder + +d, 0, 60); },
+  up(k) {
+    if (k === 'machine' && S.machine < 5 && spend(machineCost())) { S.machine++; toast('⚙️ Espresso makinesi yükseltildi!'); }
+    if (k === 'ads' && S.ads < 5 && spend(adsCost())) { S.ads++; toast('📣 Takipçi sayın arttı, cadde hareketlendi!'); }
+    if (k === 'auto' && !S.autoSupply && spend(2000)) { S.autoSupply = true; toast('🚚 Otomatik tedarik aktif.'); }
+  },
+  rent(u) {
+    u = +u; const U = UNITS[u];
+    if (S.units[u] !== 'rent' || !(u === ownMinU - 1 || u === ownMaxU + 1) || !spend(U.deposit)) return;
+    S.units[u] = 'own'; recomputeBounds(); buildUnits();
+    toast('🔨 Duvar yıkıldı! Dükkanın büyüdü. Yeni alana eşya yerleştirebilirsin.', 4000);
+  },
+  sound() { S.sound = !S.sound; },
+  reset() { if (!confirm('Bütün ilerleme silinip oyun baştan başlasın mı?')) return; try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); },
+  startDay() { startDay(); },
+  closeIntro() { S.introSeen = true; hideModal(); save(); },
+};
+function onAct(e) {
+  const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return;
+  e.preventDefault();
+  ACT[b.dataset.act](b.dataset.arg);
+  renderPanel(true); refreshUI(); save();
+}
+panel.addEventListener('pointerdown', onAct);
+$('modal').addEventListener('pointerdown', onAct);
+
+// ---- HUD ----
+function refreshUI() {
+  const m = $('money'); m.textContent = '💰 ' + fmt(S.money); m.classList.toggle('neg', S.money < 0);
+  const r = rating(); $('rating').innerHTML = `<span class="stars">★</span> ${r.toFixed(1)}`;
+  const status = S.phase === 'report' ? 'Kapalı' : S.time < OPEN ? 'Açılıyor' : S.phase === 'closing' ? 'Kapanıyor' : 'Açık';
+  $('clock').textContent = `📅 Gün ${S.day} · ${hhmm(S.time)} · ${status}`;
+  const bs = beanStock(), milkOn = Object.keys(DRINKS).some(k => S.menu[k].on && DRINKS[k].milk);
+  $('stock').innerHTML = `🫘 <span class="${bs < 25 ? 'low' : ''}">${bs}</span>${milkOn ? ` · 🥛 <span class="${S.milk < 10 ? 'low' : ''}">${S.milk}</span>` : ''}${hasItem('vitrin') ? ` · 🥐 ${S.croissant}` : ''}`;
+  shop.querySelectorAll('.card[data-type]').forEach(c => { c.disabled = S.money < CATALOG[c.dataset.type].price; c.classList.toggle('active', mode === 'build' && buildType === c.dataset.type && !moving); });
+  shop.querySelectorAll('.card[data-mode]').forEach(c => c.classList.toggle('active', mode === c.dataset.mode || (moving && c.dataset.mode === 'move')));
+  const T = S.today, next = GOALS.filter(g => !S.goalsDone.includes(g.id)).slice(0, 3);
+  $('tracker').innerHTML = `<b>Bugün</b><div class="g">Ciro <span>${fmt(T.revenue + T.foodRev + T.tips)}</span> · Servis <span>${T.served}</span> · Kaçan <span>${T.angry + T.turned + T.refused}</span></div>
+    <div class="g">İçeride <span>${insideCount()}</span> müşteri · Atmosfer <span>${atmosphere()}</span></div>
+    <b style="display:block;margin-top:6px">🎯 Sıradaki hedefler</b>${next.map(g => `<div class="g"><span>${g.text}</span> · +${fmt(g.reward)}</div>`).join('') || '<div class="g">Hepsi tamam! 🎉</div>'}`;
+}
+
+// ---- modal ----
+function showModal(html) { $('modalBox').innerHTML = html; $('modal').style.display = 'flex'; }
+function hideModal() { $('modal').style.display = 'none'; }
+function showReport() {
+  const R = S.lastReport; if (!R) return;
+  const neg = v => (v ? '−' : '') + fmt(v);
+  const row = (a, b, cls = '') => `<tr class="${cls}"><td>${a}</td><td>${b}</td></tr>`;
+  let h = `<h2>🌙 Gün ${R.day} bitti</h2><table>
+    ${row('☕ İçecek satışı', fmt(R.revenue))}${R.foodRev ? row('🥐 Kruvasan', fmt(R.foodRev)) : ''}${row('💝 Bahşiş', fmt(R.tips))}
+    ${row('Toplam gelir', fmt(R.income), 'sum')}
+    ${row('🏠 Kira', neg(R.rent))}${row('👥 Maaşlar', neg(R.wages))}${row('📦 Stok alımları', neg(R.stock))}
+    ${row('Günün net kârı', `<span class="${R.net >= 0 ? 'good' : 'bad'}">${fmt(R.net)}</span>`, 'sum')}</table>
+    <ul><li>✅ ${R.served} müşteriye servis${R.avg ? ` · ortalama memnuniyet <span class="stars">${starStr(R.avg)}</span> ${R.avg.toFixed(1)}` : ''}</li>
+    ${R.angry ? `<li>😠 ${R.angry} kişi bekleyip gitti</li>` : ''}${R.turned ? `<li>😕 ${R.turned} kişi kapıdan döndü (sıra doluydu)</li>` : ''}
+    ${R.refused ? `<li>💸 ${R.refused} kişi fiyatı pahalı buldu</li>` : ''}${R.waste ? `<li>🗑️ ${R.waste} kruvasan çöpe gitti</li>` : ''}
+    ${R.invest ? `<li>🛠️ Yatırım harcaması: ${fmt(R.invest)} (net kâra dahil değil)</li>` : ''}</ul>
+    ${R.best ? `<p><b>Günün yorumu:</b> <span class="stars">${starStr(R.best.stars)}</span> “${R.best.text}”</p>` : ''}
+    ${R.worst && R.worst !== R.best && R.worst.stars <= 2 ? `<p><b>En sert eleştiri:</b> <span class="stars">${starStr(R.worst.stars)}</span> “${R.worst.text}”</p>` : ''}`;
+  if (S.money < -3000) h += `<p class="bad"><b>💸 İflas ettin!</b> Borcun çok büyüdü. Baştan başlaman gerekiyor.</p><div class="actions"><button class="primary" data-act="reset">Baştan başla</button></div>`;
+  else h += `${S.money < 0 ? '<p class="bad">⚠️ Borçtasın! Giderlerini azalt ya da fiyatlarını gözden geçir.</p>' : ''}<div class="actions"><button class="primary" data-act="startDay">☀️ Yeni güne başla</button></div>`;
+  showModal(h);
+}
+function showIntro() {
+  showModal(`<h2>☕ Çekirdek Coffee</h2>
+    <p>Mahalle arasında, Bakkal Hasan ile Kuaför Ahmet’in arasında küçük bir kahveci açtın. Hedefin, burayı caddenin en sevilen 3. dalga kahvecisi yapmak.</p>
+    <ul><li>🚶 Caddeden geçenler; <b>puanın</b>, <b>atmosferin</b> ve <b>fiyatların</b> uygunsa içeri girer.</li>
+    <li>☕ Her espresso barın başında bir <b>barista</b> olmalı. Şimdilik barista sensin.</li>
+    <li>🫘 <b>Çekirdek</b> ve <b>süt</b> stoğunu takip et. Biterse müşteri kızar.</li>
+    <li>🧽 Kalkan müşteriler masada bardak bırakır. Masaya tıklayıp topla ya da komi işe al.</li>
+    <li>🌙 Dükkan 22:00’de kapanır. Kira ve maaşlar gün sonunda ödenir.</li>
+    <li>🔑 Yandaki boş dükkanı kiralayıp büyüyebilirsin.</li></ul>
+    <div class="actions"><button class="primary" data-act="closeIntro">Dükkanı aç</button></div>`);
+}
+
+// =====================================================================
+// Yerleştirme ve fare
+// =====================================================================
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0x2ecc71, transparent: true, opacity: .55, depthWrite: false });
+let ghost = null;
+const hl = new THREE.Mesh(new THREE.PlaneGeometry(0.96, 0.96), new THREE.MeshBasicMaterial({ color: 0x2ecc71, transparent: true, opacity: .35, depthWrite: false }));
+hl.rotation.x = -Math.PI / 2; hl.position.y = 0.012; hl.visible = false; scene.add(hl);
+const frontHl = hl.clone(); frontHl.material = new THREE.MeshBasicMaterial({ color: 0x9be7c4, transparent: true, opacity: .4, depthWrite: false }); scene.add(frontHl);
+let gridLines = null;
+function rebuildGrid() {
+  if (gridLines) scene.remove(gridLines);
+  const pts = [], x0 = ownX0(), x1 = ownX1();
+  for (let i = x0; i <= x1; i++) pts.push(i, 0.005, 0, i, 0.005, UD);
+  for (let j = 0; j <= UD; j++) pts.push(x0, 0.005, j, x1, 0.005, j);
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  gridLines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x5a4030, transparent: true, opacity: .25 }));
+  gridLines.visible = mode !== 'none'; scene.add(gridLines);
+}
+
+function setMode(m, type) {
+  if (moving && !(m === 'build' && type === moving.type)) { addItem(moving); assignBaristas(); moving = null; }
+  mode = m; buildType = m === 'build' ? type : null;
+  rebuildGrid();
+  if (ghost) { scene.remove(ghost); ghost = null; }
+  if (m === 'build') {
+    ghost = makeModel(type);
+    ghost.traverse(o => { if (o.isMesh) { o.material = ghostMat; o.castShadow = false; } if (o.isLight) o.visible = false; });
+    scene.add(ghost);
+  }
+  const hint = $('hint');
+  hint.style.display = m === 'none' ? 'none' : 'block';
+  hint.textContent = m === 'build' ? `Tıkla: yerleştir · R: döndür · Esc: iptal${type === 'bar' ? ' · açık yeşil kare: müşteri sırası' : ''}`
+    : m === 'sell' ? 'Satmak için bir eşyaya tıkla (%50 iade) · Esc: iptal' : 'Taşımak istediğin eşyaya tıkla · Esc: iptal';
+  updateHover(); refreshUI();
+}
+
+const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+let hover = null, lastPointer = null;
+function tileFromEvent(e) {
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const p = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(groundPlane, p)) return null;
+  const t = { i: Math.floor(p.x), j: Math.floor(p.z) };
+  return inBounds(t.i, t.j) ? t : null;
+}
+function updateHover() {
+  hover = lastPointer ? tileFromEvent(lastPointer) : null;
+  hl.visible = frontHl.visible = false;
+  if (ghost) ghost.visible = false;
+  renderer.domElement.style.cursor = hover && mode === 'none' && itemAt(hover.i, hover.j)?.seats?.some(s => s.dirty) ? 'pointer' : 'default';
+  if (!hover || mode === 'none') return;
+  hl.visible = true; hl.position.x = hover.i + 0.5; hl.position.z = hover.j + 0.5;
+  if (mode === 'build') {
+    const ok = canPlace(buildType, hover.i, hover.j, buildRot) && (moving || S.money >= CATALOG[buildType].price);
+    const col = ok ? 0x2ecc71 : 0xe74c3c;
+    hl.material.color.setHex(col); ghostMat.color.setHex(col);
+    ghost.visible = true; ghost.position.copy(tileCenter(hover.i, hover.j)); ghost.rotation.y = buildRot * Math.PI / 2;
+    if (buildType === 'bar') { const f = frontTile({ i: hover.i, j: hover.j, r: buildRot }); frontHl.visible = true; frontHl.position.set(f.i + .5, .012, f.j + .5); }
+  } else hl.material.color.setHex(itemAt(hover.i, hover.j) ? (mode === 'sell' ? 0xe74c3c : 0x3498db) : 0x999999);
+}
+function onClick() {
+  if (!hover) return;
+  const it = itemAt(hover.i, hover.j);
+  if (mode === 'build') {
+    const def = CATALOG[buildType];
+    if (!moving && S.money < def.price) return toast('Yeterli paran yok.');
+    if (!canPlace(buildType, hover.i, hover.j, buildRot)) return toast('Buraya konamaz: kapı, bar önü ya da yol kapanıyor.');
+    if (moving) { addItem({ type: buildType, i: hover.i, j: hover.j, r: buildRot }); moving = null; assignBaristas(); save(); setMode('move'); return; }
+    spend(def.price);
+    addItem({ type: buildType, i: hover.i, j: hover.j, r: buildRot });
+    floatText('−' + fmt(def.price), tileCenter(hover.i, hover.j).setY(0.8), 'bad');
+    if (buildType === 'bar') assignBaristas();
+    save(); refreshUI(); updateHover();
+    if (S.money < def.price) setMode('none');
+  } else if (mode === 'sell' && it) {
+    const refund = Math.floor(CATALOG[it.type].price * 0.5);
+    removeItem(it); S.money += refund;
+    floatText('+' + fmt(refund), tileCenter(it.i, it.j).setY(0.8));
+    if (!bars().length) toast('⚠️ Espresso bar olmadan servis yapılamaz!');
+    save(); refreshUI(); updateHover();
+  } else if (mode === 'move' && it) {
+    moving = { type: it.type, i: it.i, j: it.j, r: it.r };
+    removeItem(it); buildRot = it.r;
+    setMode('build', it.type);
+  } else if (mode === 'none' && it && it.seats) cleanItem(it);
+}
+
+const cvs = renderer.domElement;
+let drag = null;
+cvs.addEventListener('contextmenu', e => e.preventDefault());
+cvs.addEventListener('pointerdown', e => {
+  if (e.button === 2) { setMode('none'); return; }
+  drag = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false };
+  cvs.setPointerCapture(e.pointerId);
+});
+cvs.addEventListener('pointermove', e => {
+  lastPointer = e;
+  if (drag) {
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true;
+    if (drag.moved) {
+      const upp = (camera.top - camera.bottom) / camera.zoom / innerHeight;
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0), up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+      const t = camTarget.clone().addScaledVector(right, -(e.clientX - drag.lx) * upp).addScaledVector(up, (e.clientY - drag.ly) * upp);
+      // kamera düzlemindeki kaymayı zemine izdüşür
+      const ray = new THREE.Ray(t.clone().add(CAM_OFFSET), CAM_OFFSET.clone().negate().normalize());
+      const hit = new THREE.Vector3(); ray.intersectPlane(groundPlane, hit);
+      setCamTarget(hit);
+      drag.lx = e.clientX; drag.ly = e.clientY;
+    }
+  }
+  updateHover();
+});
+cvs.addEventListener('pointerup', e => { lastPointer = e; updateHover(); if (drag && !drag.moved) onClick(); drag = null; });
+cvs.addEventListener('pointerleave', () => { lastPointer = null; updateHover(); });
+cvs.addEventListener('wheel', e => {
+  e.preventDefault();
+  camera.zoom = clamp(camera.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 0.5, 3);
+  camera.updateProjectionMatrix(); updateHover();
+}, { passive: false });
+addEventListener('pointerdown', () => { userGesture = true; if (actx?.state === 'suspended') actx.resume(); }, true);
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'Escape') setMode('none');
+  else if (e.key === 'r' || e.key === 'R') { buildRot = (buildRot + 1) % 4; updateHover(); }
+  else if (e.key === 's' || e.key === 'S') setMode(mode === 'sell' ? 'none' : 'sell');
+  else if (e.key === 'm' || e.key === 'M') setMode(mode === 'move' ? 'none' : 'move');
+  else if (e.key === ' ') { e.preventDefault(); setSpeed(speed ? 0 : 1); }
+  else if (/^[1-9]$/.test(e.key)) { const t = Object.keys(CATALOG)[+e.key - 1]; if (t) setMode(mode === 'build' && buildType === t ? 'none' : 'build', t); }
+});
+
+// =====================================================================
+// Başlat ve ana döngü
+// =====================================================================
+buildStreet();
+recomputeBounds();
+buildUnits();
+S.items.forEach(addItem);
+assignBaristas();
+syncWorkers();
+if (!S.candidates.length) genCandidates();
+addEventListener('resize', resize); resize();
+setDayLight(S.time / 60);
+refreshUI();
+if (S.phase === 'report') showReport();
+else if (!S.introSeen) showIntro();
+
+let passT = 0.5, slowT = 0, saveT = 0, uiT = 0;
+const clock = new THREE.Clock();
+function simulate(dt) {
+  S.time += dt * MIN_PER_SEC;
+  const h = S.time / 60;
+  if (S.phase === 'open' && S.time >= CLOSE) { S.phase = 'closing'; toast('🌙 Saat 22:00, dükkan kapandı. İçerideki müşteriler çıkınca gün bitecek.', 3500); }
+  if (S.phase === 'closing') {
+    if (S.time >= CLOSE + 45) for (const p of [...people]) if (p.kind === 'customer') p.leaveShop();
+    if (insideCount() === 0) { endDay(); return; }
+  }
+  if ((passT -= dt) <= 0) { spawnPasser(h); passT = 1 / passerRate(h) * rand(.5, 1.5); }
+  updateBars(dt);
+  updateRoasters(dt);
+  for (const p of [...people]) p.update(dt);
+  for (const w of workers) w.update(dt);
+  if ((slowT += dt) > 1) {
+    slowT = 0; autoSupply(); checkGoals();
+    if (beanStock() < 25) warnOnce('beansLow', `⚠️ ${BEANS[S.activeBean].name} azalıyor (${beanStock()} doz). Stok panelinden al.`);
+    const milkOn = Object.keys(DRINKS).some(k => S.menu[k].on && DRINKS[k].milk);
+    if (milkOn && S.milk < 8) warnOnce('milk', '⚠️ Süt azalıyor! Stok panelinden al.');
+  }
+}
+function updateTags() {
+  for (const it of items) {
+    if (it.seats) itemTag(it, it.seats.some(s => s.dirty) && !it.cleaner ? '🧽' : '');
+    if (it.tagEl && it.tagEl.style.display !== 'none') {
+      const p = toScreen(tileCenter(it.i, it.j).setY(it.type === 'bar' ? 1.05 : 0.75));
+      it.tagEl.style.left = p.x + 'px'; it.tagEl.style.top = p.y + 'px';
+    }
+  }
+  for (const p of people) p.placeBubble();
+}
+renderer.setAnimationLoop(() => {
+  const raw = Math.min(clock.getDelta(), 0.1);
+  const dt = $('modal').style.display === 'flex' ? 0 : raw * speed;
+  if (dt > 0 && S.phase !== 'report') simulate(dt);
+  updateWorld(dt, S.time / 60);
+  updatePuffs(dt);
+  setDayLight(S.time / 60);
+  updateTags();
+  if ((uiT += raw) > 0.3) { uiT = 0; refreshUI(); if (tab) renderPanel(); }
+  if ((saveT += raw) > 5) { saveT = 0; save(); }
+  renderer.render(scene, camera);
+});
+addEventListener('beforeunload', save);
+</script>
+</body>
+</html>
