@@ -14,12 +14,13 @@ import { genRegulars, scheduleRegulars } from './sim/regulars.js';
 import { simulate, rollWeather, endDay, startDay } from './sim/day.js';
 import { people } from './sim/people.js';
 import { refreshUI } from './ui/hud.js';
-import { renderPanel, sheet } from './ui/panels.js';
+import { renderPanel, sheet, openSheet } from './ui/panels.js';
 import { showReport, showIntro, showNews, isModalOpen } from './ui/modal.js';
 import { initInput } from './ui/input.js';
 import { updateArt } from './ui/minigame.js';
 import { itemTag, placeEl } from './ui/overlay.js';
 import { takePhoto } from './ui/photo.js';
+import { toast } from './ui/toast.js';
 
 // ---- durum ve dünya ----
 const isNew = loadState();
@@ -40,6 +41,9 @@ function setSpeed(v) {
 $('pauseBtn').onclick = () => setSpeed(speed ? 0 : lastSpeed);
 $('speedBtn').onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(lastSpeed) + 1) % SPEEDS.length]);
 $('btnPhoto').onclick = () => takePhoto();
+$('eventChip').onclick = () => toast($('eventChip').title, 3500);
+$('clock').onclick = () => toast($('clock').title, 2500);
+$('stock').onclick = () => openSheet('shop', 'stok');
 initInput({ setSpeed, getSpeed: () => speed });
 
 // ---- yerleşim ----

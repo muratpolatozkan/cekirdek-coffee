@@ -7,6 +7,7 @@ import { hasItem, atmosphere, bars, ownMinU, ownMaxU } from '../sim/grid.js';
 import { insideCount } from '../sim/people.js';
 import { GOALS } from '../sim/quests.js';
 
+const SHORT = new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 });
 function badge(sheet, val) {
   const el = document.querySelector(`#tabbar [data-sheet="${sheet}"] .badge`);
   el.textContent = val === true ? '!' : val || '';
@@ -15,18 +16,24 @@ function badge(sheet, val) {
 export function refreshUI() {
   const b = B();
   $('brand').textContent = `${S.brand.icon} ${S.brand.name}${meta.stars ? ' ⭐' + meta.stars : ''}`;
-  const m = $('money'); m.textContent = '💰 ' + fmt(S.money); m.classList.toggle('neg', S.money < 0);
+  const m = $('money');
+  m.textContent = '💰 ' + (innerWidth < 420 && Math.abs(S.money) >= 100000 ? SHORT.format(S.money) + ' ₺' : fmt(S.money));
+  m.title = fmt(S.money); m.classList.toggle('neg', S.money < 0);
   $('rating').innerHTML = `<span style="color:var(--gold)">★</span> ${rating().toFixed(1)}`;
-  const status = S.phase === 'report' ? ' · kapalı' : S.time < OPEN ? ' · açılıyor' : S.phase === 'closing' ? ' · kapanıyor' : '';
+  const compact = innerWidth < 520;
   const W = weatherNow(), se = season();
-  $('clock').textContent = `${S.branches.length > 1 ? HOODS[b.hood].icon + ' ' : ''}${se.icon}${W.icon} Gün ${S.day} · ${hhmm(S.time)}${status}`;
+  const status = S.phase === 'report' ? (compact ? ' 🔒' : ' · kapalı') : S.time < OPEN ? (compact ? ' ⏳' : ' · açılıyor') : S.phase === 'closing' ? (compact ? ' 🌙' : ' · kapanıyor') : '';
+  $('clock').textContent = `${S.branches.length > 1 ? HOODS[b.hood].icon + ' ' : ''}${se.icon}${W.icon} ${compact ? 'G' : 'Gün '}${S.day} · ${hhmm(S.time)}${status}`;
+  $('clock').title = `${se.name} · ${W.name} · Gün ${S.day}`;
   const ev = S.event ? EVENTS[S.event.id] : null, pe = S.pevent?.day === S.day ? PEVENTS[S.pevent.id] : null;
   const evEl = $('eventChip');
-  const evText = [ev && `${ev.icon} ${ev.name}`, pe && `${pe.icon} ${pe.from}:00`, S.buzz > 0 && '🔥 Popüler'].filter(Boolean).join(' · ');
-  evEl.style.display = evText ? '' : 'none'; evEl.textContent = evText;
+  const parts = [ev && [ev.icon, ev.name], pe && [pe.icon, `${pe.name} ${pe.from}:00`], S.buzz > 0 && ['🔥', 'Popüler']].filter(Boolean);
+  evEl.style.display = parts.length ? '' : 'none';
+  evEl.textContent = compact ? parts.map(p => p[0]).join('') : parts.map(p => p.join(' ')).join(' · ');
+  evEl.title = parts.map(p => p.join(' ')).join(' · ');
   const bs = beanStock(), milkOn = Object.keys(DRINKS).some(k => S.menu[k].on && DRINKS[k].milk);
   const lowBeans = bs < 25, lowMilk = milkOn && b.milk < 10;
-  $('stock').innerHTML = `🫘 <span class="${lowBeans ? 'low' : ''}">${bs}</span>${milkOn ? ` 🥛 <span class="${lowMilk ? 'low' : ''}">${b.milk}</span>` : ''}${hasItem('vitrin') ? ` 🥐 ${b.croissant}` : ''}`;
+  $('stock').innerHTML = `🫘<span class="${lowBeans ? 'low' : ''}">${bs}</span>${milkOn ? ` 🥛<span class="${lowMilk ? 'low' : ''}">${b.milk}</span>` : ''}${hasItem('vitrin') ? ` 🥐${b.croissant}` : ''}`;
   // rozetler: dikkat isteyen şeyler
   const baristas = b.staff.filter(s => s.role === 'barista').length;
   badge('staff', baristas < bars().length || b.staff.some(s => s.fatigue > 85 || (!s.owner && s.morale < 25)));
