@@ -23,7 +23,7 @@ Oyun bir PWA: telefona uygulama gibi kurulur, tam ekran açılır ve internet ol
 - **iPhone (Safari):** Paylaş butonu → **Ana Ekrana Ekle**
 - **Android (Chrome):** ⋮ menü → **Uygulamayı yükle** / **Ana ekrana ekle**
 
-Telefonda tek parmakla kaydır, iki parmakla yakınlaştır. Eşya koyarken önce dokunup önizle, aynı kareye tekrar dokunarak onayla.
+Telefonda tek parmakla kaydır, iki parmakla yakınlaştır. Alttaki çubuktan **🛠️ İnşa · 👥 Ekip · ☕ Dükkan · 👋 Mahalle · ☰ Daha** sayfalarını aç. Eşya koyarken kareye dokun, alttaki **✓ Koy** ile onayla.
 
 ## Kontroller
 

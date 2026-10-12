@@ -31,8 +31,8 @@ export function showReport() {
     ${R.best ? `<p><b>Günün yorumu:</b> <span class="stars">${starStr(R.best.stars)}</span> “${esc(R.best.text)}”</p>` : ''}
     ${R.worst && R.worst !== R.best && R.worst.stars <= 2 ? `<p><b>En sert eleştiri:</b> <span class="stars">${starStr(R.worst.stars)}</span> “${esc(R.worst.text)}”</p>` : ''}
     <div class="forecast">🔮 <b>Yarın:</b> ${TS.icon} ${TS.name} · ${TW.icon} ${TW.name}${TW.precip ? ' · terastaki masalar kapalı olabilir' : TW.temp > 0 ? ' · soğuk içecek talebi artar' : ''}</div>`;
-  if (S.money < -3000) h += `<p class="bad"><b>💸 İflas ettin!</b> Borcun çok büyüdü. Baştan başlaman gerekiyor.</p><div class="actions"><button class="primary" data-act="reset" data-arg="force">Baştan başla</button></div>`;
-  else h += `${S.money < 0 ? '<p class="bad">⚠️ Borçtasın! Giderlerini azalt ya da fiyatlarını gözden geçir.</p>' : ''}<div class="actions"><button class="primary" data-act="startDay">☀️ Yeni güne başla</button></div>`;
+  if (S.money < -3000) h += `<p class="bad"><b>💸 İflas ettin!</b> Borcun çok büyüdü. Baştan başlaman gerekiyor.</p><div class="actions"><button class="btn primary block" data-act="reset" data-arg="force">Baştan başla</button></div>`;
+  else h += `${S.money < 0 ? '<p class="bad">⚠️ Borçtasın! Giderlerini azalt ya da fiyatlarını gözden geçir.</p>' : ''}<div class="actions"><button class="btn primary block" data-act="startDay">☀️ Yeni güne başla</button></div>`;
   showModal(h);
 }
 export function showIntro() {
@@ -45,7 +45,8 @@ export function showIntro() {
     <li>👋 Mahallenin <b>müdavimleri</b> var. Onları mutlu tut, arkadaşlarını getirsinler.</li>
     <li>🌦️ Her gün hava ve olaylar değişir. Gün sonundaki raporda yarının tahminini görürsün.</li>
     <li>🔑 Yandaki dükkanları kiralayıp büyü. Sonra yeni mahallelerde şube aç.</li></ul>
-    <div class="actions"><button class="primary" data-act="closeIntro">Dükkanı aç</button></div>`);
+    <p class="note">Alttaki çubuk: 🛠️ İnşa · 👥 Ekip · ☕ Dükkan · 👋 Mahalle · ☰ Daha. Haritayı tek parmakla kaydır, iki parmakla yakınlaştır.</p>
+    <div class="actions"><button class="btn primary block" data-act="closeIntro">☕ Dükkanı aç</button></div>`);
 }
 export function showNews() {
   showModal(`<h2>🎉 Büyük güncelleme!</h2>
@@ -57,7 +58,7 @@ export function showNews() {
     <li>😓 Personelin <b>yorgunluğu, morali ve özel yetenekleri</b>. Kendi <b>etkinliklerini</b> de düzenleyebilirsin.</li>
     <li>⛱️ <b>Teras</b>, 🎨 <b>dekorasyon</b> (duvar rengi, zemin, tablolar, kendi tabelan), 📷 <b>fotoğraf modu</b>, 🎵 lo-fi müzik.</li>
     <li>🏙️ <b>Yeni mahallelerde şubeler</b> (Kampüs, Moda, Levent), 📊 istatistikler ve ⭐ franchise.</li></ul>
-    <div class="actions"><button class="primary" data-act="closeNews">Hadi bakalım!</button></div>`);
+    <div class="actions"><button class="btn primary block" data-act="closeNews">Hadi bakalım!</button></div>`);
 }
 let lastPhoto = null;
 export const getLastPhoto = () => lastPhoto;
@@ -65,7 +66,7 @@ export function showPhoto(url) {
   lastPhoto = url;
   const canShare = !!navigator.share && !!navigator.canShare;
   showModal(`<h2>📷 Dükkanının fotoğrafı</h2><img class="photo" src="${url}" alt="Dükkan fotoğrafı">
-    <div class="actions">${canShare ? '<button data-act="sharePhoto">📤 Paylaş</button>' : ''}
-    <a class="btnlink" href="${url}" download="cekirdek-coffee-gun-${S.day}.jpg">⬇️ İndir</a>
-    <button data-act="closeModal">Kapat</button></div>`);
+    <div class="actions">${canShare ? '<button class="btn block" data-act="sharePhoto">📤 Paylaş</button>' : ''}
+    <a class="btn primary block" href="${url}" download="cekirdek-coffee-gun-${S.day}.jpg">⬇️ İndir</a>
+    <button class="btn block" data-act="closeModal">Kapat</button></div>`);
 }

@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Çekirdek Coffee</title>
 <meta name="description" content="Mahalle arasında küçük bir 3. dalga kahveci aç, caddenin en sevilen dükkanı yap.">
-<meta name="theme-color" content="#1f4f3e">
+<meta name="theme-color" content="#efe7dc">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Çekirdek">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -17,42 +17,52 @@
 </head>
 <body>
 <div id="overlay"></div>
-<div id="top">
-  <div id="hud">
-    <div class="chip brand" id="brand">☕ ÇEKİRDEK</div>
-    <div class="chip money" id="money"></div>
-    <div class="chip" id="rating"></div>
-    <div class="chip" id="clock"></div>
-    <div class="chip" id="weather"></div>
-    <div class="chip event" id="eventChip" style="display:none"></div>
-    <div class="chip" id="stock"></div>
+
+<header id="topbar">
+  <div class="row">
+    <button class="pill round" id="pauseBtn" title="Duraklat (Boşluk)">⏸</button>
+    <button class="pill speed" id="speedBtn" title="Oyun hızı">1×</button>
+    <div class="pill brandpill" id="brand"></div>
+    <div class="pill money" id="money"></div>
+    <div class="pill" id="rating"></div>
+    <span class="spacer"></span>
+    <button class="pill round" id="btnPhoto" title="Fotoğraf çek (P)">📷</button>
   </div>
-  <div id="controls">
-    <button data-speed="0" title="Duraklat (Boşluk)">⏸</button>
-    <button data-speed="1" class="active">1×</button>
-    <button data-speed="2">2×</button>
-    <button data-speed="4">4×</button>
-    <span class="sep"></span>
-    <button data-tab="staff" title="Personel">👥<span class="lbl"> Personel</span></button>
-    <button data-tab="menu" title="Menü">📋<span class="lbl"> Menü</span></button>
-    <button data-tab="stock" title="Stok">📦<span class="lbl"> Stok</span></button>
-    <button data-tab="upgrades" title="Geliştir">⬆️<span class="lbl"> Geliştir</span></button>
-    <button data-tab="street" title="Cadde ve şubeler">🏠<span class="lbl"> Cadde</span></button>
-    <button data-tab="hood" title="Mahalle">👋<span class="lbl"> Mahalle</span></button>
-    <button data-tab="decor" title="Dekor">🎨<span class="lbl"> Dekor</span></button>
-    <button data-tab="reviews" title="Yorumlar">💬<span class="lbl"> Yorumlar</span></button>
-    <button data-tab="stats" title="İstatistik">📊<span class="lbl"> İstatistik</span></button>
-    <button data-tab="goals" title="Hedefler">🎯<span class="lbl"> Hedefler</span></button>
-    <button data-tab="settings" title="Ayarlar">⚙️</button>
-    <button id="btnPhoto" class="icon" title="Fotoğraf çek (P)">📷</button>
+  <div class="row">
+    <div class="pill" id="clock"></div>
+    <div class="pill event" id="eventChip" style="display:none"></div>
+    <div class="pill" id="stock"></div>
   </div>
-</div>
+</header>
+
 <div id="tracker"></div>
-<div id="panel"></div>
-<div id="shop"></div>
-<div id="hint"><span id="hintText"></span><button id="hintRot" title="Döndür (R)">↻<span class="lbl"> Döndür</span></button><button id="hintCancel">✕</button></div>
-<div id="artGame"><b>🎨 Latte art! Yeşilin ortasında dokun</b><div id="artTrack"><div id="artZone"></div><div id="artPerfect"></div><div id="artNeedle"></div></div><small>Koyu yeşil = mükemmel</small></div>
-<div id="toast"></div>
+
+<section id="sheet" aria-hidden="true">
+  <div class="sheet-head" id="sheetHead">
+    <div class="grab"></div>
+    <div class="sheet-title"><h2 id="sheetTitle"></h2><button class="x" id="sheetClose" aria-label="Kapat">✕</button></div>
+  </div>
+  <div class="segs" id="sheetSegs"></div>
+  <div class="sheet-body" id="sheetBody"></div>
+</section>
+
+<div id="actionbar">
+  <div id="abInfo"><div id="abTitle"></div><div id="abMsg"></div></div>
+  <button class="abbtn" id="abRot" title="Döndür (R)">↻</button>
+  <button class="abbtn" id="abCancel" title="Bitir (Esc)">✕</button>
+  <button class="abbtn ok" id="abOk">✓</button>
+</div>
+
+<nav id="tabbar">
+  <button data-sheet="build"><span class="e">🛠️</span>İnşa<i class="badge"></i></button>
+  <button data-sheet="staff"><span class="e">👥</span>Ekip<i class="badge"></i></button>
+  <button data-sheet="shop"><span class="e">☕</span>Dükkan<i class="badge"></i></button>
+  <button data-sheet="hood"><span class="e">👋</span>Mahalle<i class="badge"></i></button>
+  <button data-sheet="more"><span class="e">☰</span>Daha<i class="badge"></i></button>
+</nav>
+
+<div id="artGame"><b>🎨 Latte art! Koyu yeşilde dokun</b><div id="artTrack"><div id="artZone"></div><div id="artPerfect"></div><div id="artNeedle"></div></div><small>Tam ortada durdurursan mükemmel olur</small></div>
+<div id="toasts"></div>
 <div id="modal"><div class="box" id="modalBox"></div></div>
 
 <script type="importmap">
