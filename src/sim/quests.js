@@ -7,6 +7,7 @@ import { coin } from '../audio.js';
 import { rating, beanStock, beanPrice } from './economy.js';
 import { hasItem, ownedCount, refreshVitrin } from './grid.js';
 import { addReview } from './people.js';
+import { isUnlocked, addXP } from './progress.js';
 
 const dayIncome = () => { const t = B().today; return t.revenue + t.foodRev + t.tips; };
 export const GOALS = [
@@ -75,7 +76,7 @@ function giveReward(q) {
   if (r.reviews) { for (let k = 0; k < r.reviews; k++) addReview(5, `${q.from} çok memnun kaldı, herkese tavsiye ediyor.`, q.from, q.icon); msgs.push(`+${r.reviews} harika yorum`); }
   if (r.civic) { b.civic += r.civic; msgs.push('caddeye daha çok insan geliyor'); }
   if (r.buzz) { S.buzz = Math.max(S.buzz, r.buzz); msgs.push(`${r.buzz} gün boyunca kalabalık`); }
-  coin();
+  coin(); addXP(10);
   note(`✅ ${q.from} isteği tamamlandı! (${msgs.join(', ')})`);
 }
 export function completeQuest(id) {
@@ -100,5 +101,6 @@ export function questsEndOfDay() {
 }
 export function questsMorning() {
   const b = B();
+  if (!isUnlocked('seg:hood:istek')) return;
   if (--b.questTimer <= 0) { offerQuest(b); b.questTimer = 3; }
 }

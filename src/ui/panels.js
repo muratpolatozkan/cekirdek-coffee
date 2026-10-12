@@ -1,6 +1,7 @@
 // Alttan açılan sayfalar (mobilde bottom sheet, geniş ekranda sol panel) ve butonların yaptığı işler
 import { DRINKS, BEANS, FOOD, BAG, MILK_PACK, MILK_PACK_COST, TYPES, TRAITS, HOODS, NEIGHBORS, PEVENTS, ROASTS, SWEET, WALL_COLORS, FLOORS, CATALOG,
-  WALL_DECOR, BRAND_COLORS, BRAND_ICONS, WALL_COST, FLOOR_COST, TERRACE_COST, TERRACE_FEE, LOYALTY_CARD_COST, AUTO_SUPPLY_COST, NU } from '../config.js';
+  WALL_DECOR, BRAND_COLORS, BRAND_ICONS, WALL_COST, FLOOR_COST, TERRACE_COST, TERRACE_FEE, LOYALTY_CARD_COST, AUTO_SUPPLY_COST, NU,
+  UNLOCK_NAMES, BASES, MILKS, FLAVORS, CUSTOM_COST, MAX_CUSTOM } from '../config.js';
 import { S, B, save, meta, wipeSave } from '../state.js';
 import { $, fmt, starStr, esc, clamp } from '../utils.js';
 import { toast, note, haptic } from './toast.js';
@@ -17,17 +18,24 @@ import { rivalName, rivalShare } from '../sim/rival.js';
 import { canOpenBranch, availableHoods, openBranch, switchBranch, canFranchise, franchiseStars, franchise } from '../sim/branches.js';
 import { buildUnits, refreshMenuBoard, wallSlots } from '../world/units.js';
 import { setMode } from './input.js';
+import { isUnlocked, unlockLevel, levelProgress, levelTitle, unlocksOf, dailyProgress } from '../sim/progress.js';
+import { createCustom, autoName, customDef } from '../sim/customs.js';
+import { regQuestReady } from '../sim/regulars.js';
+import { applyQuality } from '../quality.js';
 
 const SHEETS = {
   build: { title: '🛠️ İnşa', segs: [['oturma', '🪑 Oturma'], ['ekipman', '☕ Ekipman'], ['dekor', '🪴 Dekor'], ['arac', '✋ Taşı / Sat']] },
   staff: { title: '👥 Ekip', segs: [['ekip', 'Ekibim'], ['aday', 'Adaylar']] },
-  shop: { title: '☕ Dükkan', segs: [['menu', '📋 Menü'], ['stok', '📦 Stok'], ['gelistir', '⬆️ Geliştir']] },
+  shop: { title: '☕ Dükkan', segs: [['menu', '📋 Menü'], ['stok', '📦 Stok'], ['gelistir', '⬆️ Geliştir'], ['atolye', '🧪 Atölye']] },
   hood: { title: '👋 Mahalle', segs: [['mudavim', 'Müdavimler'], ['istek', 'İstekler'], ['rakip', 'Rakip'], ['etkinlik', 'Etkinlik'], ['yorum', 'Yorumlar']] },
   more: { title: '☰ Daha fazla', segs: [['cadde', '🏠 Cadde'], ['dekor', '🎨 Dekor'], ['istatistik', '📊 İstatistik'], ['hedef', '🎯 Hedefler'], ['ayar', '⚙️ Ayarlar']] },
 };
 export let sheet = null;
 const segOf = {};
 let lastHtml = '', decorPick = 'tablo', holding = false;
+const ws = { base: 'espresso', milk: 'sut', flavor: 'karamel', name: '' };   // atölyedeki taslak tarif
+const lockTag = key => `🔒 Sv ${unlockLevel(key)}`;
+const segKey = (sh, sg) => `seg:${sh}:${sg}`;
 const el = $('sheet'), bodyEl = $('sheetBody');
 
 // ---- küçük yapı taşları ----
@@ -58,9 +66,9 @@ const R = {
       <p class="note" style="margin-top:10px">Taşı: eşyaya dokun, sonra yeni yerine koy. Sat: eşyaya dokun, sonra onayla.</p>`;
     const [types, tip] = BUILD_CATS[sg], se = season().id;
     return top + `<div class="grid">${types.filter(t => !CATALOG[t].season || CATALOG[t].season === se).map(t => {
-      const d = CATALOG[t], locked = d.terraceOnly && !B().terrace;
-      return `<button class="tile" data-act="build" data-arg="${t}" ${S.money < d.price || locked ? 'disabled' : ''}>${d.amb ? `<span class="k">+${d.amb}✨</span>` : ''}
-        <span class="e">${d.icon}</span><span class="n">${d.name}</span><span class="p">${locked ? 'Teras gerekli' : fmt(d.price)}</span></button>`;
+      const d = CATALOG[t], lvlLock = !isUnlocked('item:' + t), locked = lvlLock || (d.terraceOnly && !B().terrace);
+      return `<button class="tile${lvlLock ? ' lock' : ''}" data-act="build" data-arg="${t}" ${S.money < d.price || locked ? 'disabled' : ''}>${d.amb ? `<span class="k">+${d.amb}✨</span>` : ''}
+        <span class="e">${d.icon}</span><span class="n">${d.name}</span><span class="p">${lvlLock ? lockTag('item:' + t) : locked ? 'Teras gerekli' : fmt(d.price)}</span></button>`;
     }).join('')}</div><p class="note" style="margin-top:10px">${tip}</p>`;
   },
   staff(sg) {
@@ -105,8 +113,12 @@ const R = {
       };
       h += `<div class="sec">Klasikler</div>`;
       for (const [id, d] of Object.entries(DRINKS)) if (!d.sig) h += drink(id, d);
-      h += `<div class="sec">İmza tarifler</div><p class="note">Yerel tarifler bazı müşteri tiplerini çok mutlu eder. Öğrenciler tatlı sever, kahve tutkunları sevmez.</p>`;
-      for (const [id, d] of Object.entries(DRINKS)) if (d.sig) h += drink(id, d);
+      const customs = Object.entries(DRINKS).filter(([, d]) => d.custom);
+      if (customs.length) { h += `<div class="sec">Senin tariflerin</div>`; for (const [id, d] of customs) h += drink(id, d); }
+      h += `<div class="sec">İmza tarifler</div>`;
+      if (!isUnlocked('sig')) h += `<p class="note">${lockTag('sig')}: Türk kahvesi, tahinli latte, salep gibi yerel tarifler.</p>`;
+      else { h += `<p class="note">Yerel tarifler bazı müşteri tiplerini çok mutlu eder. Öğrenciler tatlı sever, kahve tutkunları sevmez.</p>`;
+        for (const [id, d] of Object.entries(DRINKS)) if (d.sig && !d.custom) h += drink(id, d); }
       h += `<div class="sec">Yiyecek</div>` + (hasItem('vitrin')
         ? item({ ic: '🥐', t: 'Kruvasan', s: `Maliyet ${fmt(FOOD.cost)} · kahvenin yanında satılır`, ac: stepper('foodprice', '-5', '5', S.foodPrice + ' ₺') })
         : `<p class="note">🥐 Kruvasan satmak için İnşa → Ekipman’dan Pasta Vitrini koy.</p>`);
@@ -131,10 +143,21 @@ const R = {
       h += `<p class="note">${S.autoSupply ? '🚚 Otomatik tedarik açık: çekirdek ve süt azalınca %10 farkla kendiliğinden sipariş verilir.' : '🚚 Stok takibiyle uğraşmak istemezsen Geliştir sekmesinden otomatik tedarik al.'}</p>`;
       return h;
     }
+    if (sg === 'atolye') {
+      const spec = { ...ws }, d = customDef({ ...spec, name: ws.name || autoName(spec) }), n = S.customs.length;
+      const likes = Object.entries(d.likes).sort((a, c) => c[1] - a[1]).slice(0, 3).map(([t]) => `${TYPES[t].icon} ${TYPES[t].name}`).join(', ');
+      return `<p class="note">Kendi içeceğini tasarla: bir baz, süt ve aroma seç. Her müşteri tipinin zevki farklı; tarif menüne gerçek bir içecek olarak eklenir. (${n}/${MAX_CUSTOM} tarif)</p>`
+        + `<div class="sec">Baz</div>${segctl('ws', Object.entries(BASES).map(([k, v]) => [`base:${k}`, `${v.icon} ${v.short}`]), `base:${ws.base}`)}`
+        + `<div class="sec">Süt</div>${segctl('ws', Object.entries(MILKS).map(([k, v]) => [`milk:${k}`, v.name]), `milk:${ws.milk}`)}`
+        + `<div class="sec">Aroma</div><div class="swatches">${Object.entries(FLAVORS).map(([k, v]) => `<button class="btn sm ${ws.flavor === k ? 'on' : ''}" data-act="ws" data-arg="flavor:${k}">${v.icon} ${v.name}</button>`).join('')}</div>`
+        + `<div class="sec">Önizleme</div>` + item({ col: true, ic: d.icon, t: esc(d.name), s: `${d.desc}<br>Önerilen fiyat ~${fmt(d.base)} · bardak maliyeti ~${fmt(d.beans * beanPrice(B().activeBean) + d.milk * 3 + d.extra)} · ${d.time.toFixed(1)} sn<br>En çok sevecekler: ${likes || '—'}`,
+          extra: `<div style="display:flex;gap:6px;margin-top:8px"><input type="text" id="wsName" maxlength="30" placeholder="${esc(autoName(spec))}" value="${esc(ws.name)}"></div>`,
+          ac: buy('wsCreate', null, n >= MAX_CUSTOM ? 'Tarif sınırı doldu' : `🧪 Tarifi oluştur · ${fmt(CUSTOM_COST)}`, n >= MAX_CUSTOM ? 1e12 : CUSTOM_COST) });
+    }
     const up = (ic, t, s, done, act, arg, cost, doneText = '✓ Aktif') => item({ ic, t, s, ac: done ? `<span class="tag">${doneText}</span>` : buy(act, arg, fmt(cost), cost) });
     return up('⚙️', `Espresso makinesi · Sv ${b.machine}/5`, 'Bu şubedeki bütün içecekler %15 daha hızlı hazırlanır.', b.machine >= 5, 'up', 'machine', machineCost(), 'MAKS')
       + up('📣', `Sosyal medya · Sv ${S.ads}/5`, 'Bütün şubelerde caddeye daha çok kişi gelir, içeri girme ihtimali artar.', S.ads >= 5, 'up', 'ads', adsCost(), 'MAKS')
-      + up('⛱️', 'Teras izni', `Kaldırıma masa koyabilirsin. Güneşli havada müşteriler terası sever. Günlük ${fmt(TERRACE_FEE)} harç.`, b.terrace, 'up', 'terrace', TERRACE_COST, '✓ Açık')
+      + (isUnlocked('terrace') ? up('⛱️', 'Teras izni', `Kaldırıma masa koyabilirsin. Güneşli havada müşteriler terası sever. Günlük ${fmt(TERRACE_FEE)} harç.`, b.terrace, 'up', 'terrace', TERRACE_COST, '✓ Açık') : item({ dim: true, ic: '⛱️', t: 'Teras izni', s: lockTag('terrace') }))
       + up('💳', 'Sadakat kartı', 'Müdavimler daha hızlı bağlanır, rakibe karşı +%15 avantaj.', S.loyaltyCard, 'up', 'loyalty', LOYALTY_CARD_COST)
       + up('🚚', 'Otomatik tedarik', 'Çekirdek ve süt bitmeden kendiliğinden sipariş verilir (%10 fark).', S.autoSupply, 'up', 'auto', AUTO_SUPPLY_COST)
       + `<p class="note">✨ Atmosfer: toplam ${atmosphere()}, dükkan başına ${atmPerUnit().toFixed(1)}.</p>`;
@@ -145,7 +168,7 @@ const R = {
       let h = `<p class="note">Her gün belli saatte gelirler. Mutlu ettikçe sadakatleri artar; 80’de arkadaşlarını getirirler, 90’da sürpriz yaparlar. Kızarlarsa giderler.</p>`;
       for (const r of b.regulars) h += item({ dim: r.status === 'lost', ic: r.emoji,
         t: `${esc(r.name)}${r.status === 'lost' ? ' <span class="tag red">gelmiyor</span>' : r.loyalty >= 80 ? ' <span class="tag">sadık</span>' : ''}`,
-        s: `${esc(r.story)}<br>☕ ${DRINKS[r.fav].name}${S.menu[r.fav].on ? '' : ' <span class="bad">(menüde yok!)</span>'} · 🕐 ${hhm(r.hour)} · ${r.visits} ziyaret`,
+        s: `${esc(r.story)}<br>☕ ${DRINKS[r.fav].name}${S.menu[r.fav].on ? '' : ' <span class="bad">(menüde yok!)</span>'} · 🕐 ${hhm(r.hour)} · ${r.visits} ziyaret${r.lastLine ? `<br>💬 <i>“${esc(r.lastLine)}”</i>` : ''}${r.quest ? `<br>📖 ${r.quest.done ? '<span class="good">İsteği tamamlandı</span>' : `${esc(r.quest.text)}${regQuestReady(r) ? ' <span class="good">✓ hazır, bir sonraki gelişinde teşekkür edecek</span>' : ''}`}` : ''}`,
         extra: `<div class="mlabel"><span>Sadakat</span><span>${Math.round(r.loyalty)}</span></div>${meter(r.loyalty, r.loyalty < 30 ? 'bad' : r.loyalty < 55 ? 'warn' : '')}` });
       return h;
     }
@@ -199,7 +222,8 @@ const R = {
           s: `${ownedCountOf(br)} dükkan · ⭐ ${rating(br).toFixed(1)}${last != null ? ` · son gün ${fmt(last)}` : ''}`,
           ac: k === S.activeBranch ? '' : btn('switch', k, 'Git', 'primary') }); });
       if (S.branches.length > 1) h += `<p class="note">Başında olmadığın şubeler, son günlerinin ortalama kârının %85’ini kendiliğinden kazanır.</p>`;
-      const hoods = availableHoods();
+      const hoods = isUnlocked('branches') ? availableHoods() : [];
+      if (!isUnlocked('branches')) h += `<p class="note">${lockTag('branches')}: yeni mahallelerde şube açabilirsin.</p>`;
       if (hoods.length) {
         h += `<div class="sec">Yeni şube</div>${canOpenBranch() ? '' : '<p class="note">Yeni şube için her şubende en az 3 dükkan olmalı.</p>'}`;
         for (const hd of hoods) { const HH = HOODS[hd]; h += item({ dim: !canOpenBranch(), ic: HH.icon, t: HH.name, s: HH.desc, ac: btn('openBranch', hd, fmt(HH.open), 'primary', !canOpenBranch() || S.money < HH.open) }); }
@@ -245,12 +269,17 @@ const R = {
       return h + `<div class="sec">En çok satanlar</div>${bars(S.sales, k => `${DRINKS[k]?.icon || ''} ${DRINKS[k]?.name || k}`)}<div class="sec">Müşteri tipleri</div>${bars(S.typeCounts, k => `${TYPES[k]?.icon || ''} ${TYPES[k]?.name || k}`)}`;
     }
     if (sg === 'hedef') {
-      const done = GOALS.filter(g => S.goalsDone.includes(g.id)).length;
-      return stats([[`${done}/${GOALS.length}`, 'Tamamlanan'], [fmt(GOALS.filter(g => !S.goalsDone.includes(g.id)).reduce((a, g) => a + g.reward, 0)), 'Kalan ödül'], ['🎯', 'Hedefler']])
+      const done = GOALS.filter(g => S.goalsDone.includes(g.id)).length, lp = levelProgress(), nextU = unlocksOf(lp.l + 1);
+      let top = item({ col: true, ic: '🏅', t: `Seviye ${lp.l} · ${levelTitle(lp.l)}`, s: `${lp.cur} / ${lp.need} XP · servis, 5 yıldızlı yorum, hedefler ve akınlar XP kazandırır`,
+        extra: `${meter(lp.pct * 100)}${nextU.length ? `<div class="s" style="margin-top:6px">Sıradaki seviyede: ${nextU.map(u => UNLOCK_NAMES[u] || CATALOG[u.split(':')[1]]?.name || u).join(', ')}</div>` : ''}` });
+      if (S.daily) { top += `<div class="sec">Bugünün hedefleri</div>`; for (const g of S.daily.goals) { const v = dailyProgress(g);
+        top += item({ dim: g.done, ic: g.done ? '✅' : g.icon, t: g.text, s: g.done ? 'Tamamlandı' : `${v} / ${g.target}`, extra: g.done ? '' : meter(v / g.target * 100), ac: `<span class="tag ${g.done ? '' : 'gold'}">+${fmt(g.reward)}</span>` }); } }
+      return top + `<div class="sec">Büyük hedefler</div>` + stats([[`${done}/${GOALS.length}`, 'Tamamlanan'], [fmt(GOALS.filter(g => !S.goalsDone.includes(g.id)).reduce((a, g) => a + g.reward, 0)), 'Kalan ödül'], ['🎯', 'Hedefler']])
         + GOALS.map(g => { const ok = S.goalsDone.includes(g.id); return item({ dim: ok, ic: ok ? '✅' : '🎯', t: g.text, ac: `<span class="tag ${ok ? '' : 'gold'}">+${fmt(g.reward)}</span>` }); }).join('');
     }
     const tgl = (act, on, label) => btn(act, null, on ? label[0] : label[1], on ? 'primary' : '');
-    return item({ ic: '🔊', t: 'Ses efektleri', s: 'Kapı zili ve kasa sesi', ac: tgl('sound', S.sound, ['Açık', 'Kapalı']) })
+    return item({ ic: '🔋', t: 'Pil tasarrufu', s: 'Telefon ısınıyorsa aç: 30 kare/sn, düşük çözünürlük, daha az gölge ve ışık.', ac: tgl('battery', S.battery, ['Açık', 'Kapalı']) })
+      + item({ ic: '🔊', t: 'Ses efektleri', s: 'Kapı zili ve kasa sesi', ac: tgl('sound', S.sound, ['Açık', 'Kapalı']) })
       + item({ ic: '🎵', t: 'Lo-fi müzik', s: 'Arka planda sakin kahveci müziği', ac: tgl('music', S.music, ['Açık', 'Kapalı']) })
       + item({ ic: '🎨', t: 'Latte art mini oyunu', s: 'Sütlü siparişlerde 🎨 butonu çıksın', ac: tgl('art', S.latteArt, ['Açık', 'Kapalı']) })
       + item({ ic: '❓', t: 'Nasıl oynanır', s: 'Başlangıç rehberini tekrar göster', ac: btn('help', null, 'Göster') })
@@ -262,11 +291,13 @@ const R = {
 // ---- sayfa aç / kapa / çiz ----
 export function openSheet(name, sg) {
   if (sheet === name && !sg) { closeSheet(); return; }
+  if (!isUnlocked('tab:' + name)) { toast(`🔒 ${UNLOCK_NAMES['tab:' + name]} seviye ${unlockLevel('tab:' + name)}’de açılır.`); return; }
+  if (sg && !isUnlocked(segKey(name, sg))) sg = null;
   setMode('none');
   sheet = name;
   if (sg) segOf[name] = sg;
-  else if (name === 'hood' && B().quests.length) segOf[name] = 'istek';
-  segOf[name] = segOf[name] || SHEETS[name].segs[0][0];
+  else if (name === 'hood' && B().quests.length && isUnlocked('seg:hood:istek')) segOf[name] = 'istek';
+  if (!segOf[name] || !isUnlocked(segKey(name, segOf[name]))) segOf[name] = SHEETS[name].segs.find(([k]) => isUnlocked(segKey(name, k)))[0];
   el.classList.add('open'); el.setAttribute('aria-hidden', 'false');
   bodyEl.scrollTop = 0;
   renderSheet(true);
@@ -282,8 +313,12 @@ export function renderSheet(force) {
   if (!force && (holding || (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT'))) return;
   const def = SHEETS[sheet], sg = segOf[sheet];
   $('sheetTitle').textContent = def.title;
-  const segHtml = def.segs.map(([k, l]) => `<button class="seg ${k === sg ? 'active' : ''}" data-seg="${k}">${l}</button>`).join('');
-  if ($('sheetSegs').dataset.k !== sheet + sg) { $('sheetSegs').innerHTML = segHtml; $('sheetSegs').dataset.k = sheet + sg; }
+  const segHtml = def.segs.map(([k, l]) => { const lk = !isUnlocked(segKey(sheet, k)); return `<button class="seg ${k === sg ? 'active' : ''}${lk ? ' locked' : ''}" data-seg="${k}">${lk ? '🔒 ' : ''}${l}</button>`; }).join('');
+  const segK = sheet + sg + S.xp;   // seviye değişince kilitler de yenilensin
+  if ($('sheetSegs').dataset.k !== segK) {
+    $('sheetSegs').innerHTML = segHtml; $('sheetSegs').dataset.k = segK;
+    const act = $('sheetSegs').querySelector('.active'); if (act) $('sheetSegs').scrollLeft = act.offsetLeft - 16;
+  }
   const html = R[sheet](sg);
   if (force || html !== lastHtml) { bodyEl.innerHTML = html; lastHtml = html; }
 }
@@ -292,6 +327,8 @@ export const renderPanel = renderSheet;
 
 $('sheetSegs').addEventListener('click', e => {
   const b = e.target.closest('[data-seg]'); if (!b || !sheet) return;
+  const key = segKey(sheet, b.dataset.seg);
+  if (!isUnlocked(key)) { toast(`🔒 ${UNLOCK_NAMES[key] || 'Bu bölüm'} seviye ${unlockLevel(key)}’de açılır.`); return; }
   haptic(5);
   segOf[sheet] = b.dataset.seg; bodyEl.scrollTop = 0; renderSheet(true);
   $('sheetSegs').querySelector('.active')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
@@ -378,6 +415,15 @@ const ACT = {
   brandName() { const v = ($('brandName')?.value || '').trim().toLocaleUpperCase('tr-TR').slice(0, 14); if (!v) return; S.brand.name = v; buildUnits(); document.activeElement?.blur(); toast(`🏷️ Tabelan değişti: ${v}`); },
   brandColor(k) { S.brand.color = k; buildUnits(); },
   brandIcon(ic) { S.brand.icon = ic; buildUnits(); },
+  battery() { S.battery = !S.battery; applyQuality(); toast(S.battery ? '🔋 Pil tasarrufu açık' : '⚡ Tam kalite'); },
+  ws(arg) { const [k, v] = arg.split(':'); ws[k] = v; ws.name = ''; },
+  wsCreate() {
+    if (S.customs.length >= MAX_CUSTOM || !spend(CUSTOM_COST)) return;
+    const name = ($('wsName')?.value || '').trim();
+    const id = createCustom({ base: ws.base, milk: ws.milk, flavor: ws.flavor, name });
+    refreshMenuBoard(); ws.name = '';
+    toast(`🧪 ${DRINKS[id].icon} ${DRINKS[id].name} menüye eklendi! Fiyatını Menü bölümünden ayarlayabilirsin.`, 4000);
+  },
   sound() { S.sound = !S.sound; },
   music() { setMusic(!S.music); },
   art() { S.latteArt = !S.latteArt; },

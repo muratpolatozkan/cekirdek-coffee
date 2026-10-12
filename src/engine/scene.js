@@ -9,6 +9,7 @@ export const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH ? 1.5 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;   // gölgeler ana döngüde seyrek güncellenir
 document.body.prepend(renderer.domElement);
 
 export const scene = new THREE.Scene();
@@ -21,7 +22,7 @@ export function setCamTarget(t) {
   t.x = clamp(t.x, -4, GW + 4); t.z = clamp(t.z, -1, UD + 8); t.y = 0;
   camera.position.copy(t).add(CAM_OFFSET); camera.lookAt(t); camTarget = t;
 }
-export const focusShop = () => setCamTarget(V(UW * 1.5, UD / 2 + 1));
+export const focusShop = () => { setCamTarget(V(UW * 1.5, UD / 2 + 1)); requestRender(); };
 setCamTarget(camTarget.clone());
 camera.zoom = 1.25;
 
@@ -30,6 +31,7 @@ export function resizeRenderer() {
   camera.left = -halfH * a; camera.right = halfH * a; camera.top = halfH; camera.bottom = -halfH;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  renderWanted = true;
 }
 
 export const hemi = new THREE.HemisphereLight(0xffffff, 0xcdb79c, 1.6);
@@ -42,6 +44,18 @@ Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 16, bottom: -16, n
 sun.shadow.bias = -0.0006;
 scene.add(sun, sun.target);
 
+// sadece bir şey değiştiğinde çizmek için: değişiklik yapan kod requestRender() çağırır
+let renderWanted = true;
+export const requestRender = () => { renderWanted = true; };
+export const takeRenderRequest = () => { const w = renderWanted; renderWanted = false; return w; };
+// pil tasarrufu: düşük çözünürlük ve küçük gölge haritası
+export function applyRendererQuality(battery) {
+  renderer.setPixelRatio(Math.min(devicePixelRatio, battery ? 1.25 : IS_TOUCH ? 1.5 : 2));
+  const size = battery ? 1024 : 2048;
+  if (sun.shadow.mapSize.x !== size) { sun.shadow.mapSize.set(size, size); sun.shadow.map?.dispose(); sun.shadow.map = null; }
+  renderer.setSize(innerWidth, innerHeight);
+  requestRender();
+}
 export const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 export const raycaster = new THREE.Raycaster();
 const tmpV = new THREE.Vector3(), ndc = new THREE.Vector2();
@@ -60,5 +74,6 @@ export function panBy(dx, dy) {
   const ray = new THREE.Ray(t.clone().add(CAM_OFFSET), CAM_OFFSET.clone().negate().normalize());
   const hit = new THREE.Vector3();
   if (ray.intersectPlane(groundPlane, hit)) setCamTarget(hit);
+  requestRender();
 }
-export function setZoom(z) { camera.zoom = clamp(z, 0.5, 3); camera.updateProjectionMatrix(); }
+export function setZoom(z) { camera.zoom = clamp(z, 0.5, 3); camera.updateProjectionMatrix(); requestRender(); }

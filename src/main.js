@@ -2,31 +2,46 @@
 import * as THREE from 'three';
 import { S, B, loadState, save, wipeSave } from './state.js';
 import { $ } from './utils.js';
-import { renderer, scene, camera, resizeRenderer } from './engine/scene.js';
+import { renderer, scene, camera, resizeRenderer, takeRenderRequest, requestRender } from './engine/scene.js';
 import { updatePuffs } from './engine/fx.js';
+import { Q } from './engine/perf.js';
 import { buildStreet, buildRival, updateStreet } from './world/street.js';
 import { buildUnits, updateUnits, refreshMenuBoard } from './world/units.js';
-import { setDayLight, applyWeather, updateWeather } from './world/weather.js';
+import { setDayLight, applyWeather, updateWeather, precipActive } from './world/weather.js';
 import { rebuildWorld, switchBranch } from './sim/branches.js';
 import { recomputeBounds, loadItems, items, tileCenter, cleanItem } from './sim/grid.js';
 import { assignBaristas, syncWorkers, genCandidates } from './sim/staff.js';
 import { genRegulars, scheduleRegulars } from './sim/regulars.js';
 import { simulate, rollWeather, endDay, startDay } from './sim/day.js';
 import { people } from './sim/people.js';
+import { registerCustoms } from './sim/customs.js';
+import { ensureDaily, level, levelTitle, unlocksOf } from './sim/progress.js';
+import { planDay } from './sim/events.js';
+import { offlineEarnings } from './sim/offline.js';
+import { applyQuality } from './quality.js';
+import { UNLOCK_NAMES, CATALOG } from './config.js';
 import { refreshUI } from './ui/hud.js';
 import { renderPanel, sheet, openSheet } from './ui/panels.js';
-import { showReport, showIntro, showNews, isModalOpen } from './ui/modal.js';
+import { showReport, showIntro, showNews, showOffline, showLevelUp, isModalOpen } from './ui/modal.js';
 import { initInput } from './ui/input.js';
 import { updateArt } from './ui/minigame.js';
-import { itemTag, placeEl } from './ui/overlay.js';
+import { itemTag, placeEl, confetti } from './ui/overlay.js';
 import { takePhoto } from './ui/photo.js';
 import { toast } from './ui/toast.js';
+import { updateTutorial } from './ui/tutorial.js';
+import { sparkle } from './audio.js';
 
 // ---- durum ve dünya ----
 const isNew = loadState();
-if (isNew) S.weather.tomorrow = rollWeather(2);
+registerCustoms();
+Object.assign(Q, { battery: !!S.battery, peopleShadows: !S.battery, lampLights: !S.battery, fps: S.battery ? 30 : 60 });
+if (isNew) { S.weather.tomorrow = rollWeather(2); planDay(); }
+if (S.levelSeen === 99) S.levelSeen = level();
+ensureDaily();
 for (const b of S.branches) { if (!b.regulars.length) genRegulars(b); if (!b.candidates.length) genCandidates(b); }
-recomputeBounds(); buildStreet(); buildUnits(); loadItems(); assignBaristas(); syncWorkers(); buildRival(); applyWeather(); refreshMenuBoard();
+recomputeBounds(); buildStreet(); loadItems(); assignBaristas(); syncWorkers(); buildRival(); applyWeather();
+applyQuality();          // birimleri de kurar
+refreshMenuBoard();
 if (B().regDay !== S.day) scheduleRegulars();
 
 // ---- hız, duraklat, fotoğraf, klavye ----
@@ -37,6 +52,7 @@ function setSpeed(v) {
   $('pauseBtn').textContent = v ? '⏸' : '▶';
   $('pauseBtn').classList.toggle('paused', !v);
   $('speedBtn').textContent = (v || lastSpeed) + '×';
+  requestRender();
 }
 $('pauseBtn').onclick = () => setSpeed(speed ? 0 : lastSpeed);
 $('speedBtn').onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(lastSpeed) + 1) % SPEEDS.length]);
@@ -44,16 +60,19 @@ $('btnPhoto').onclick = () => takePhoto();
 $('eventChip').onclick = () => toast($('eventChip').title, 3500);
 $('clock').onclick = () => toast($('clock').title, 2500);
 $('stock').onclick = () => openSheet('shop', 'stok');
+$('levelPill').onclick = () => openSheet('more', 'hedef');
 initInput({ setSpeed, getSpeed: () => speed });
 
-// ---- yerleşim ----
+// ---- yerleşim ve açılış pencereleri ----
 function layout() { resizeRenderer(); }
 addEventListener('resize', layout); layout();
 setDayLight(S.time / 60);
 refreshUI();
-if (S.phase === 'report') showReport();
+const away = isNew ? null : offlineEarnings();
+if (S.phase === 'report') { showReport(); if (away) toast(`🌙 Sen yokken dükkanın +${away.amount.toLocaleString('tr-TR')} ₺ kazandı.`, 4500); }
 else if (!S.introSeen) showIntro();
 else if (!S.news3) showNews();
+else if (away) showOffline(away);
 
 // ---- ana döngü ----
 function updateTags() {
@@ -63,22 +82,47 @@ function updateTags() {
   }
   for (const p of people) p.placeBubble();
 }
-let uiT = 0, saveT = 0;
+// seviye atlayınca kutlama (açık bir pencere varsa kapanınca)
+function checkLevelUp() {
+  const l = level();
+  if (l <= S.levelSeen || isModalOpen()) return;
+  const names = [];
+  for (let k = S.levelSeen + 1; k <= l; k++) for (const u of unlocksOf(k)) names.push(UNLOCK_NAMES[u] || (u.startsWith('item:') ? `${CATALOG[u.slice(5)].icon} ${CATALOG[u.slice(5)].name}` : u));
+  S.levelSeen = l; save();
+  showLevelUp(l, levelTitle(l), [...new Set(names)]); confetti(60); sparkle();
+}
+
+let uiT = 0, saveT = 0, shadowT = 0, frameAcc = 0;
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
-  const raw = Math.min(clock.getDelta(), 0.1);
+  frameAcc += clock.getDelta();
+  // pil tasarrufunda saniyede 30 kare
+  if (Q.fps < 60 && frameAcc < 1 / Q.fps - 0.002) return;
+  const raw = Math.min(frameAcc, 0.1); frameAcc = 0;
   const dt = isModalOpen() ? 0 : raw * speed;
   if (dt > 0 && S.phase !== 'report') simulate(dt);
   updateStreet(dt); updateUnits(dt); updatePuffs(dt); updateWeather(raw); updateArt();
   setDayLight(S.time / 60);
   updateTags();
-  if ((uiT += raw) > 0.3) { uiT = 0; refreshUI(); if (sheet) renderPanel(); }
+  if ((uiT += raw) > 0.3) { uiT = 0; refreshUI(); if (sheet) renderPanel(); updateTutorial({ speed: () => speed }); checkLevelUp(); }
   if ((saveT += raw) > 5) { saveT = 0; save(); }
+  // zaman akmıyorsa ve bir değişiklik yoksa çizme (duraklatılmış oyun pil yemesin)
+  const wanted = takeRenderRequest();
+  if (dt === 0 && !wanted && !precipActive()) return;
+  // gölgeleri her karede değil, aralıklarla güncelle
+  shadowT += raw;
+  if (wanted || shadowT > (Q.battery ? 0.25 : 0.05)) { renderer.shadowMap.needsUpdate = true; shadowT = 0; }
   renderer.render(scene, camera);
 });
 addEventListener('beforeunload', save);
 addEventListener('pagehide', save);
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { save(); return; }
+  // geri dönünce: sen yokken kazanç
+  const off = offlineEarnings();
+  if (off && !isModalOpen()) showOffline(off);
+  requestRender();
+});
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }

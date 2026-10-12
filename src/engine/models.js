@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { M, Mc, G, mesh, box, cyl, sph, cone, MAT, canvasTex } from './assets.js';
 import { pick, rand } from '../utils.js';
+import { bake, Q } from './perf.js';
 
 export const SHIRTS = [0xd96c4f, 0x4f7cd9, 0xe3b23c, 0x8f5fc2, 0x3aa17e, 0xe07aa1, 0x5c6670, 0xf0efe9, 0x2d4059, 0x7a9e7e, 0xb5651d];
 export const SKINS = [0xf1c9a5, 0xe0ac7e, 0xc68642, 0x8d5524, 0xffdbb5];
@@ -14,8 +15,13 @@ export function randomLook(base = {}) {
 }
 export function makePerson(look = {}) {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-  const legs = new THREE.Group(); legs.position.y = 0.18; body.add(legs);
-  legs.add(cyl(0.085, 0.095, 0.18, Mc(look.pants ?? pick([0x2b2b2e, 0x34495e, 0x5d4e3c, 0x1f2a44])), 0, -0.09, 0, 10));
+  // bacaklar ayrı döner (yürüme, oturma) → birleştirmeye girmez
+  const legs = new THREE.Group(); legs.position.y = 0.18; legs.userData.dynamic = true; body.add(legs);
+  const pm = Mc(look.pants ?? pick([0x2b2b2e, 0x34495e, 0x5d4e3c, 0x1f2a44]));
+  const legL = new THREE.Group(), legR = new THREE.Group();
+  legL.position.x = -0.045; legR.position.x = 0.045;
+  legL.add(cyl(0.042, 0.048, 0.18, pm, 0, -0.09, 0, 8)); legR.add(cyl(0.042, 0.048, 0.18, pm, 0, -0.09, 0, 8));
+  legs.add(legL, legR);
   const shirt = look.shirt instanceof THREE.Material ? look.shirt : Mc(look.shirt ?? pick(SHIRTS));
   body.add(cyl(0.11, 0.14, 0.32, shirt, 0, 0.34, 0, 14));
   body.add(sph(0.1, Mc(look.skin ?? pick(SKINS)), 0, 0.6, 0));
@@ -34,7 +40,9 @@ export function makePerson(look = {}) {
     body.add(gt);
   }
   if (look.sunglasses) body.add(box(0.17, 0.03, 0.02, MAT.black, 0, 0.615, 0.095));
-  g.userData = { body, legs };
+  bake(body, { unify: true });
+  g.traverse(o => { if (o.isMesh) { o.castShadow = Q.peopleShadows; o.receiveShadow = false; } });
+  g.userData = { body, legs, legL, legR };
   return g;
 }
 export function sitPose(p, seatH) { p.userData.body.position.y = seatH - 0.16; p.userData.legs.rotation.x = -Math.PI / 2; }
@@ -108,7 +116,7 @@ export function makeModel(type) {
     g.add(box(0.72, 0.42, 0.36, MAT.woodD, 0, 0.21, -0.12));
     for (let k = 0; k < 6; k++) g.add(box(0.03, 0.26, 0.24, Mc(pick(PRODUCT_COLORS)), -0.28 + k * 0.05, 0.16, -0.08));
     g.add(box(0.34, 0.04, 0.28, MAT.woodL, 0, 0.44, -0.12));
-    const disc = cyl(0.11, 0.11, 0.012, MAT.black, -0.03, 0.465, -0.12, 24); g.add(disc); ud.spin = disc;
+    const disc = cyl(0.11, 0.11, 0.012, MAT.black, -0.03, 0.465, -0.12, 24); disc.userData.dynamic = true; g.add(disc); ud.spin = disc;
     g.add(box(0.14, 0.24, 0.14, MAT.black, -0.27, 0.54, -0.12), box(0.14, 0.24, 0.14, MAT.black, 0.27, 0.54, -0.12));
   } else if (type === 'vitrin') {
     g.add(box(0.9, 0.4, 0.45, MAT.woodL, 0, 0.2, 0));
@@ -118,18 +126,18 @@ export function makeModel(type) {
     ud.croissants = [];
     for (let k = 0; k < 8; k++) {
       const c = sph(0.05, MAT.croissant, -0.3 + (k % 4) * 0.2, 0.45, -0.08 + Math.floor(k / 4) * 0.16);
-      c.scale.set(1.4, 0.7, 0.9); g.add(c); ud.croissants.push(c);
+      c.scale.set(1.4, 0.7, 0.9); c.userData.dynamic = true; g.add(c); ud.croissants.push(c);
     }
   } else if (type === 'roaster') {
     g.add(box(0.5, 0.36, 0.5, MAT.dark, 0, 0.18, -0.08));
     const drum = new THREE.Group(); drum.position.set(0, 0.55, -0.08);
     const d = cyl(0.17, 0.17, 0.36, MAT.copper, 0, 0, 0, 20); d.rotation.x = Math.PI / 2; drum.add(d);
     drum.add(box(0.05, 0.36, 0.05, MAT.black, 0, 0.17, 0));
-    g.add(drum); ud.drum = drum;
+    drum.userData.dynamic = true; g.add(drum); ud.drum = drum;
     g.add(cyl(0.12, 0.03, 0.18, MAT.steel, 0, 0.82, -0.16));
     g.add(cyl(0.04, 0.04, 0.75, MAT.black, -0.19, 0.75, -0.28, 10));
     g.add(cyl(0.2, 0.2, 0.06, MAT.steel, 0, 0.34, 0.26, 20));
-    const paddle = box(0.34, 0.03, 0.03, MAT.black, 0, 0.385, 0.26); g.add(paddle); ud.paddle = paddle;
+    const paddle = box(0.34, 0.03, 0.03, MAT.black, 0, 0.385, 0.26); paddle.userData.dynamic = true; g.add(paddle); ud.paddle = paddle;
   } else if (type === 'xmas') {
     g.add(cyl(0.12, 0.1, 0.16, MAT.terracotta, 0, 0.08, 0));
     for (const [y, r] of [[0.35, 0.3], [0.6, 0.23], [0.82, 0.16]]) g.add(cone(r, 0.3, MAT.pine, 0, y, 0, 10));
@@ -170,7 +178,7 @@ export function makeWallDecor(kind) {
     const c = cyl(0.2, 0.2, 0.04, MAT.white, 0, 0, 0, 24); c.rotation.x = Math.PI / 2; g.add(c);
     const rim = cyl(0.215, 0.215, 0.03, MAT.black, 0, 0, -0.005, 24); rim.rotation.x = Math.PI / 2; g.add(rim);
     const h1 = box(0.02, 0.11, 0.01, MAT.black, 0, 0.045, 0.025), h2 = box(0.015, 0.15, 0.01, MAT.black, 0.04, 0.02, 0.026);
-    h2.rotation.z = -1.2; g.add(h1, h2); g.userData.hands = [h1, h2];
+    h2.rotation.z = -1.2; h1.userData.dynamic = h2.userData.dynamic = true; g.add(h1, h2); g.userData.hands = [h1, h2];
   } else if (kind === 'harita') {
     g.add(box(0.8, 0.5, 0.025, MAT.woodD, 0, 0, 0));
     const tex = canvasTex(160, 100, (c) => {

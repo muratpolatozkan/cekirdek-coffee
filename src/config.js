@@ -4,7 +4,8 @@
 export const UW = 5, UD = 6, NU = 4, GW = UW * NU;          // dükkan birimi genişlik/derinlik, birim sayısı
 export const SIDEWALK_Z = UD + 1.3, FAR_Z = UD + 6.3;       // yaya şeritleri (teras kaldırımın iç kısmında)
 export const STREET_X0 = -9, STREET_X1 = GW + 9;
-export const MIN_PER_SEC = 1.5;                              // 1 gerçek saniye = 1.5 oyun dakikası
+export const MIN_PER_SEC = 2.4;                              // 1 gerçek saniye = 2.4 oyun dakikası (gün ≈ 6 dk)
+export const PACE = 1.6;                                     // günü kısalttığımız oran: yaya akışı bu kadar sıklaşır, işler bu kadar hızlanır
 export const OPEN = 8 * 60, CLOSE = 22 * 60, DAY_START = 7 * 60 + 30;
 export const MAX_QUEUE = 4, MAX_INSIDE = 45, WALL_H = 1.6;
 export const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]];
@@ -162,6 +163,7 @@ export const TXT = {
   terrace: { pos: ['Terasta oturmak çok keyifliydi.', 'Güneşte kahve, daha ne olsun!'], neg: [] },
   cozy:    { pos: ['Yağmurlu havada sıcacık bir köşe, harika.', 'Dışarısı soğuktu, içerisi çok sıcacıktı.'], neg: [] },
   pevent:  { pos: ['Bugünkü etkinlik çok keyifliydi!', 'Böyle etkinlikleri daha sık yapın.'], neg: [] },
+  vip:     { pos: ['VIP muamelesi gördüm, hızlı ve kusursuzdu.', 'Siparişim anında hazırdı, çok profesyonel.'], neg: ['Siparişim çok gecikti, daha hızlı olmalıydı.'] },
   angry:   ['Sipariş bile veremedim, çok bekledim!', 'Sıra hiç ilerlemedi, çıkıp gittim.', 'Kimse ilgilenmedi, bir daha gelmem.'],
   nostock: ['Kahvecide kahve bitmiş, inanılmaz!', 'Çekirdek kalmamış dediler. Ciddi misiniz?'],
   refused: ['Fiyatları görünce vazgeçtim.', 'Bir kahveye bu para çok fazla.'],
@@ -261,3 +263,73 @@ export const QUESTS = [
   { id: 'gazete', from: 'Mahalle Gazetesi', icon: '📰', text: () => 'Röportaj yapmak istiyor: bugün ortalama memnuniyet en az 4.0 olsun.', need: { avgSat: 4 }, reward: { buzz: 2 }, days: 1, auto: true },
   { id: 'dernek', from: 'Kahve Derneği', icon: '🧪', text: () => 'Tadım için 30 doz taze kavrulmuş çekirdek istiyor.', need: { fresh: 30 }, reward: { money: 2500, reviews: 2 }, days: 4, requires: 'roaster' },
 ];
+
+// ---- seviye (itibar) ve açılan özellikler ----
+// unlocks: 'tab:x' alt sekme, 'seg:sayfa:bölüm', 'item:tür', ya da özellik adı
+export const LEVELS = [
+  { xp: 0, title: 'Mahalle kahvecisi', unlocks: [] },
+  { xp: 35, title: 'Sevilen kahveci', unlocks: ['tab:staff', 'seg:shop:gelistir', 'item:sofa', 'item:lamp', 'item:shelf'] },
+  { xp: 110, title: 'Mahallenin kahvecisi', unlocks: ['tab:hood', 'seg:more:cadde', 'item:vitrin', 'item:pikap', 'events', 'rush'] },
+  { xp: 240, title: 'Caddenin yıldızı', unlocks: ['seg:hood:istek', 'seg:hood:etkinlik', 'seg:more:dekor', 'item:tree', 'vip'] },
+  { xp: 420, title: 'Kahve ustası', unlocks: ['seg:hood:rakip', 'rival', 'item:roaster', 'terrace', 'item:umbrella', 'seg:shop:atolye'] },
+  { xp: 680, title: 'Üçüncü dalga öncüsü', unlocks: ['sig'] },
+  { xp: 1000, title: 'Şehrin konuştuğu', unlocks: [] },
+  { xp: 1500, title: 'Kahve markası', unlocks: ['branches'] },
+];
+export const UNLOCK_NAMES = {
+  'tab:staff': '👥 Ekip (personel işe alma)', 'tab:hood': '👋 Mahalle (müdavimler, yorumlar)', 'seg:shop:gelistir': '⬆️ Geliştirmeler',
+  'seg:more:cadde': '🏠 Yan dükkanları kiralama', 'seg:hood:istek': '📬 Mahalle istekleri', 'seg:hood:etkinlik': '🎉 Etkinlik düzenleme',
+  'seg:more:dekor': '🎨 Dekorasyon', 'seg:hood:rakip': '🏪 Rakip kahveci', 'seg:shop:atolye': '🧪 Tarif atölyesi', events: '🎲 Rastgele olaylar',
+  rush: '🏃 Yoğun saat akınları', vip: '⭐ VIP siparişleri', rival: '🏪 Rakip kahveci', terrace: '⛱️ Teras', sig: '✨ İmza tarifler', branches: '🏙️ Yeni şubeler',
+};
+export const XP = { serve: 1, five: 2, daily: 12, quest: 10, vip: 10, rush: 15, regularQuest: 15 };
+
+// ---- tarif atölyesi ----
+export const BASES = {
+  espresso: { name: 'Espresso bazlı', short: 'Espresso', icon: '☕', beans: 1, time: 3, base: 55, temp: 'hot' },
+  coldbrew: { name: 'Cold brew bazlı', short: 'Cold brew', icon: '🧊', beans: 2, time: 2.5, base: 90, temp: 'cold' },
+  filtre: { name: 'Filtre bazlı', short: 'Filtre', icon: '⏳', beans: 2, time: 6, base: 100, temp: 'hot' },
+};
+export const MILKS = {
+  yok: { name: 'Sütsüz', milk: 0, add: 0, extra: 0, likes: {} },
+  sut: { name: 'Süt', milk: 1, add: 15, extra: 0, likes: { ogrenci: 1, emekli: .5 } },
+  yulaf: { name: 'Yulaf sütü', milk: 1, add: 25, extra: 6, likes: { turist: 1.2, ogrenci: .8 } },
+};
+export const FLAVORS = {
+  sade: { name: 'Sade', icon: '☕', extra: 0, add: 0, likes: { tutkun: 2.5, ofis: 1 } },
+  karamel: { name: 'Karamel', icon: '🍮', extra: 4, add: 15, likes: { ogrenci: 2, turist: 1.5 } },
+  findik: { name: 'Fındık', icon: '🌰', extra: 5, add: 15, likes: { ofis: 1.5, ogrenci: 1.5 } },
+  tarcin: { name: 'Tarçın', icon: '🍂', extra: 3, add: 12, likes: { emekli: 2, turist: 1 } },
+  lavanta: { name: 'Lavanta', icon: '💜', extra: 6, add: 20, likes: { turist: 2.5, tutkun: .5 } },
+  tahin: { name: 'Tahin & pekmez', icon: '🥜', extra: 7, add: 20, likes: { ogrenci: 2, emekli: 1.5 } },
+  lokum: { name: 'Gül lokumu', icon: '🌹', extra: 8, add: 22, likes: { turist: 3, ogrenci: 1 } },
+};
+export const CUSTOM_COST = 2500, MAX_CUSTOM = 3;
+
+// ---- VIP müşteriler ----
+export const VIPS = [
+  { name: 'Yazar Orhan Bey', type: 'tutkun', look: { shirt: 0x3b2f2f, hair: 0xcfcfcf, acc: 'glasses' } },
+  { name: 'Şef Deniz', type: 'tutkun', look: { shirt: 0xf3f1ea, hair: 0x2b1d14, acc: 'apron' } },
+  { name: 'Oyuncu Ece Su', type: 'turist', look: { shirt: 0xff7eb6, hair: 0xd9c08a, sunglasses: true } },
+  { name: 'Futbolcu Kaan', type: 'ofis', look: { shirt: 0xc0392b, hair: 0x111111, acc: 'cap', capColor: 0xc0392b } },
+];
+
+// ---- müdavim replikleri (sadakate göre) ----
+export const LINES = {
+  ofis: { low: ['Acelem var, çabuk olsun lütfen.', 'Umarım bugün sıra yoktur.'], mid: ['Günaydın! Her zamankinden.', 'Toplantıdan önce sana uğramadan olmaz.'], high: ['Ofiste herkese seni anlatıyorum!', 'Senin kahven olmadan güne başlayamıyorum.'] },
+  ogrenci: { low: ['Burada çalışabilir miyim acaba?', 'Fiyatlar biraz yüksek ama bakalım.'], mid: ['Bugün de tez yazacağım, yerim hazır mı?', 'Selam! Latte lütfen.'], high: ['Burası benim ikinci evim oldu!', 'Arkadaşlarımı da getiriyorum artık.'] },
+  tutkun: { low: ['Bakalım çekirdekler ne durumda.', 'Ekstraksiyon süren kaç saniye?'], mid: ['Bugün hangi çekirdek var?', 'Geçen seferki fena değildi.'], high: ['Şehrin en iyi kahvesi burada, yazdım bunu!', 'Kavrumuna bayılıyorum.'] },
+  emekli: { low: ['Hmm, bakalım bugün kahve nasıl.', 'Eskiden kahve böyle değildi evladım.'], mid: ['Günaydın evladım, her zamankinden.', 'Gazetemi okumaya geldim.'], high: ['Senin kahven olmadan güne başlayamıyorum!', 'Mahallenin en tatlı köşesi burası.'] },
+  turist: { low: ['Hello! Nice place, mekan güzelmiş.', 'Fotoğraf çekebilir miyim?'], mid: ['Yine geldim, burası çok şirin!', 'Bugün ne önerirsin?'], high: ['Seni bütün takipçilerime anlattım!', 'Şehirdeki favori kahvecim burası.'] },
+  rain: ['Bu yağmurda en iyi yer burası.', 'Şemsiyemi kapıya bırakıyorum.'],
+  snow: ['Kar yağıyor, sıcacık bir şey lazım!', 'Dışarısı buz gibi!'],
+  hot: ['Çok sıcak, soğuk bir şey içmem lazım!', 'Bu sıcakta cold brew iyi gider.'],
+};
+// müdavimlerin küçük hikaye görevleri (sadakat 60'ı geçince açılır)
+export const REG_QUESTS = {
+  ofis: { text: 'Sabahları çok bekliyor: espresso makinesini 3. seviyeye çıkar.', check: 'machine3', thanks: 'Artık kahvem 2 dakikada hazır, harikasın!' },
+  ogrenci: { text: 'Rahat çalışmak için koltuk istiyor: dükkana bir koltuk koy.', check: 'sofa', thanks: 'Bu koltukta tezimi bitireceğim, teşekkürler!' },
+  tutkun: { text: 'Daha iyi çekirdek istiyor: Etiyopya ya da daha kaliteli bir çekirdek kullan.', check: 'bean4', thanks: 'İşte bu! Çiçeksi notalar mükemmel.' },
+  emekli: { text: 'Kahvesinin yanında bir şey istiyor: vitrinde kruvasan olsun.', check: 'croissant', thanks: 'Kruvasanla kahve, tam istediğim gibi evladım.' },
+  turist: { text: 'Fotoğraf için güzel bir köşe istiyor: duvara bir dekor as.', check: 'walldecor', thanks: 'Bu duvar çok fotojenik oldu, paylaştım bile!' },
+};

@@ -3,14 +3,15 @@ import * as THREE from 'three';
 import { UD, CATALOG } from '../config.js';
 import { S, B, save } from '../state.js';
 import { $, fmt } from '../utils.js';
-import { renderer, scene, camera, IS_TOUCH, groundAt, panBy, setZoom } from '../engine/scene.js';
+import { renderer, scene, camera, IS_TOUCH, groundAt, panBy, setZoom, requestRender } from '../engine/scene.js';
 import { makeModel } from '../engine/models.js';
 import { toast, haptic } from './toast.js';
 import { floatText } from './overlay.js';
 import { refreshUI } from './hud.js';
 import { takePhoto } from './photo.js';
 import { inBounds, itemAt, tileCenter, frontTile, addItem, removeItem, bars, placeProblem, ownX0, ownX1, cleanItem } from '../sim/grid.js';
-import { assignBaristas } from '../sim/staff.js';
+import { assignBaristas, helpBar } from '../sim/staff.js';
+import { track } from '../sim/progress.js';
 import { spend } from '../sim/economy.js';
 import { sheet, closeSheet, openSheet } from './panels.js';
 
@@ -96,6 +97,7 @@ export function updateHover() {
     } else hl.material.color.setHex(itemAt(t.i, t.j) ? (mode === 'sell' ? 0xe74c3c : 0x3498db) : 0x999999);
   }
   updateBar();
+  requestRender();
 }
 
 // seçili karede işlemi yap (✓ butonu, bilgisayarda tıklama)
@@ -127,7 +129,12 @@ function confirmAt(t) {
 function onTap(e) {
   const t = tileFromEvent(e);
   if (sheet && mode === 'none') { closeSheet(); return; }
-  if (mode === 'none') { const it = t && itemAt(t.i, t.j); if (it?.seats && cleanItem(it)) haptic(8); return; }
+  if (mode === 'none') {
+    const it = t && itemAt(t.i, t.j);
+    if (it?.type === 'bar') { if (helpBar(it)) haptic(6); }
+    else if (it?.seats && cleanItem(it)) { haptic(8); track('cleans'); }
+    return;
+  }
   if (mode === 'move') {
     const it = t && itemAt(t.i, t.j); if (!it) return;
     moving = { type: it.type, i: it.i, j: it.j, r: it.r };

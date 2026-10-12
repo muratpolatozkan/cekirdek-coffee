@@ -7,6 +7,8 @@ import { M, Mc, G, box, cyl, sph, cone, MAT, canvasTex, floorTex, signTexture, b
 import { makePerson, makeWallDecor, sitPose, PRODUCT_COLORS } from '../engine/models.js';
 import { pick, rand } from '../utils.js';
 import { ownX0, ownX1, ownedCount } from '../sim/grid.js';
+import { bake, disposeBaked, Q } from '../engine/perf.js';
+import { requestRender } from '../engine/scene.js';
 
 let group = new THREE.Group(); scene.add(group);
 export const unitLights = [];
@@ -48,7 +50,7 @@ function fascia(u) {
 }
 
 export function buildUnits() {
-  scene.remove(group);
+  scene.remove(group); disposeBaked(group);
   group = new THREE.Group(); scene.add(group);
   npcs = []; poles = []; xmasMats = []; clocks = []; menuBoard = null;
   const g = group, b = B(), H = HOODS[b.hood];
@@ -85,6 +87,10 @@ export function buildUnits() {
     else decorEmpty(g, x0);
   }
   if (b.terrace) terraceDeck(g);
+  g.traverse(o => { if (o.userData.body) o.userData.dynamic = true; });   // insanlar zaten kendi içinde birleşik
+  bake(g);
+  B().units.forEach((st, u) => unitLights[u].visible = st === 'own' || (!Q.battery && st === 'occupied'));
+  requestRender();
 }
 
 function decorOurs(g, x0) {

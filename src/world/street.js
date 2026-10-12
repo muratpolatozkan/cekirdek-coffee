@@ -7,15 +7,20 @@ import { M, Mc, box, cyl, sph, cone, MAT, canvasTex, noise, bannerTex } from '..
 import { makeCar, makeCat, makeBoat } from '../engine/models.js';
 import { rand, pick, V } from '../utils.js';
 import { RIVAL_X0, RIVAL_W, rivalName } from '../sim/rival.js';
+import { bake, disposeBaked } from '../engine/perf.js';
+import { requestRender } from '../engine/scene.js';
 
 let group = null, rivalGroup = null, rivalSnow = null, boats = [];
 export const streetLights = [];
 for (let k = 0; k < 5; k++) { const l = new THREE.PointLight(0xffc77a, 0, 4.5, 1.4); scene.add(l); streetLights.push(l); }
+// mevsimle renk değiştiren malzemeler: birleştirirken kendi malzemelerini korusunlar diye keepMaterial işaretli
 const foliage = [M(0x4e8a4a, { r: .9 }), M(0x5b9a52, { r: .9 }), M(0x447d44, { r: .9 })];
 const grassMat = M(0x9dbf7c, { r: 1 });
+for (const m of [...foliage, grassMat]) m.userData.keepMaterial = true;
 const snowMat = new THREE.MeshStandardMaterial({ color: 0xf6f8fb, roughness: .9, transparent: true, opacity: .88 });
 const snowCover = new THREE.Group(); snowCover.visible = false; scene.add(snowCover);
 export function setSnow(v) { snowCover.visible = v; if (rivalSnow) rivalSnow.visible = v; }
+export function setStreetLightsEnabled(v) { streetLights.forEach(l => l.visible = v); }
 
 const LEN = STREET_X1 - STREET_X0 + 20, CX = (STREET_X0 + STREET_X1) / 2;
 const SEASON_COLORS = {
@@ -52,7 +57,7 @@ function snowPlane(w, d, x, y, z) {
 }
 
 export function buildStreet() {
-  if (group) scene.remove(group);
+  if (group) { scene.remove(group); disposeBaked(group); }
   group = new THREE.Group(); scene.add(group);
   boats = [];
   snowCover.clear();
@@ -97,7 +102,7 @@ export function buildStreet() {
     const water = new THREE.Mesh(new THREE.PlaneGeometry(LEN + 40, 40), MAT.water);
     water.rotation.x = -Math.PI / 2; water.position.set(CX, -0.09, UD + 28.5); water.receiveShadow = true; g.add(water);
     for (const [x, z, c] of [[4, 11, 0xffffff], [13, 13, 0xc0392b], [22, 10.5, 0x2c5f8a]]) {
-      const b = makeBoat(c); b.position.set(x, -0.06, UD + z); b.rotation.y = rand(-.4, .4); g.add(b); boats.push({ b, ph: rand(0, 6) });
+      const b = makeBoat(c); b.position.set(x, -0.06, UD + z); b.rotation.y = rand(-.4, .4); b.userData.dynamic = true; g.add(b); boats.push({ b, ph: rand(0, 6) });
     }
     for (let x = STREET_X0 + 2; x < STREET_X1; x += 5) {
       g.add(cyl(0.05, 0.07, 1.3, MAT.woodD, x, 0.65, UD + 7.75, 8));
@@ -152,11 +157,13 @@ export function buildStreet() {
     streetLights[k].position.set(x, 1.05, z - 0.3);
   });
   setSeasonLook();
+  bake(group);
+  requestRender();
 }
 
 // ---- rakip kahvecinin binası: yakında / açık / kapandı ----
 export function buildRival() {
-  if (rivalGroup) scene.remove(rivalGroup);
+  if (rivalGroup) { scene.remove(rivalGroup); disposeBaked(rivalGroup); }
   rivalGroup = new THREE.Group(); scene.add(rivalGroup);
   const g = rivalGroup, r = B().rival, x0 = RIVAL_X0, cx = x0 + RIVAL_W / 2, h = 1.1;
   const open = r.active && !r.closed;
@@ -180,6 +187,8 @@ export function buildRival() {
     const aw = box(RIVAL_W - .2, 0.04, 0.5, Mc(0xc0392b), cx, .9, UD + .25); aw.rotation.x = .25; g.add(aw);
     g.add(box(0.5, 0.6, 0.08, Mc(0x2b2b2e), doorX + 1, .3, UD + .55));
   }
+  rivalSnow.userData.dynamic = true;
+  bake(g); requestRender();
 }
 
 // ---- cadde hayatı ----

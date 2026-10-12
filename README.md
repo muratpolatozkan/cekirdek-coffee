@@ -16,6 +16,14 @@ Mahalle arasında küçük bir 3. dalga kahveci açıp onu caddenin en sevilen d
 - **Büyüme:** Yan dükkanları kiralayıp duvarları yık, teras aç. Kampüs, Moda ve Levent'te şube aç, sonra franchise yapıp kalıcı yıldızlarla baştan başla.
 - **Kişiselleştirme:** Duvar rengi, zemin, duvar dekorları, kendi tabelan ve logon. Fotoğraf modu ve lo-fi müzik.
 
+## Oyun akışı
+
+- **Rehber ve seviyeler:** İlk oyunda adım adım rehber var. Servis yaptıkça XP kazanıp seviye atlarsın, her seviye yeni özellikler açar (ekip, mahalle, dekor, rakip, teras, şubeler…).
+- **Günlük hedefler:** Her gün 3 küçük hedef ve ödülü.
+- **Kısa günler:** Bir gün yaklaşık 6 dakika sürer. Sen yokken dükkan para biriktirir (en fazla 8 saatlik).
+- **Aktif oyun:** Barista çalışırken bara dokunarak hızlandır. Yoğun saat akınlarında süre dolmadan hedefi tuttur, VIP siparişlerini hızlı hazırla, latte art'ta seri yaparak kalp → lale → kuğu desenlerini aç, tarif atölyesinde kendi içeceğini tasarla.
+- **Pil tasarrufu:** Telefonlarda varsayılan olarak açık. Ayarlardan kapatılabilir.
+
 ## Telefona kurma
 
 Oyun bir PWA: telefona uygulama gibi kurulur, tam ekran açılır ve internet olmadan da oynanır.

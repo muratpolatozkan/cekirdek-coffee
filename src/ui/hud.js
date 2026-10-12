@@ -6,6 +6,8 @@ import { rating, beanStock, season, weatherNow, unitDeposit } from '../sim/econo
 import { hasItem, atmosphere, bars, ownMinU, ownMaxU } from '../sim/grid.js';
 import { insideCount } from '../sim/people.js';
 import { GOALS } from '../sim/quests.js';
+import { rushInfo } from '../sim/events.js';
+import { levelProgress, isUnlocked, unlockLevel } from '../sim/progress.js';
 
 const SHORT = new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 });
 function badge(sheet, val) {
@@ -28,18 +30,30 @@ export function refreshUI() {
   const ev = S.event ? EVENTS[S.event.id] : null, pe = S.pevent?.day === S.day ? PEVENTS[S.pevent.id] : null;
   const evEl = $('eventChip');
   const parts = [ev && [ev.icon, ev.name], pe && [pe.icon, `${pe.name} ${pe.from}:00`], S.buzz > 0 && ['🔥', 'Popüler']].filter(Boolean);
-  evEl.style.display = parts.length ? '' : 'none';
-  evEl.textContent = compact ? parts.map(p => p[0]).join('') : parts.map(p => p.join(' ')).join(' · ');
-  evEl.title = parts.map(p => p.join(' ')).join(' · ');
+  const ri = rushInfo();
+  evEl.classList.toggle('rush', !!ri);
+  if (ri) { evEl.style.display = ''; evEl.textContent = `🏃 ${ri.count}/${ri.target} · ${ri.t} sn`; evEl.title = `Akın: ${ri.t} saniyede ${ri.target} servis`; }
+  else {
+    evEl.style.display = parts.length ? '' : 'none';
+    evEl.textContent = compact ? parts.map(p => p[0]).join('') : parts.map(p => p.join(' ')).join(' · ');
+    evEl.title = parts.map(p => p.join(' ')).join(' · ');
+  }
+  const lp = levelProgress(), dDone = S.daily ? S.daily.goals.filter(g => g.done).length : 0, dAll = S.daily?.goals.length || 0;
+  $('levelPill').innerHTML = `🏅 ${lp.l}${dAll ? `<small>🎯${dDone}/${dAll}</small>` : ''}<i style="width:${Math.round(lp.pct * 100)}%"></i>`;
+  $('levelPill').title = `Seviye ${lp.l} · ${lp.cur}/${lp.need} XP`;
+  for (const t of ['staff', 'hood']) {
+    const btn = document.querySelector(`#tabbar [data-sheet="${t}"]`), locked = !isUnlocked('tab:' + t);
+    btn.classList.toggle('locked', locked); btn.dataset.lock = locked ? unlockLevel('tab:' + t) : '';
+  }
   const bs = beanStock(), milkOn = Object.keys(DRINKS).some(k => S.menu[k].on && DRINKS[k].milk);
   const lowBeans = bs < 25, lowMilk = milkOn && b.milk < 10;
   $('stock').innerHTML = `🫘<span class="${lowBeans ? 'low' : ''}">${bs}</span>${milkOn ? ` 🥛<span class="${lowMilk ? 'low' : ''}">${b.milk}</span>` : ''}${hasItem('vitrin') ? ` 🥐${b.croissant}` : ''}`;
   // rozetler: dikkat isteyen şeyler
   const baristas = b.staff.filter(s => s.role === 'barista').length;
-  badge('staff', baristas < bars().length || b.staff.some(s => s.fatigue > 85 || (!s.owner && s.morale < 25)));
+  badge('staff', isUnlocked('tab:staff') && (baristas < bars().length || b.staff.some(s => s.fatigue > 85 || (!s.owner && s.morale < 25))));
   badge('shop', lowBeans || lowMilk);
-  badge('hood', b.quests.length);
-  const rentable = [ownMinU - 1, ownMaxU + 1].some(u => b.units[u] === 'rent' && S.money >= unitDeposit(u));
+  badge('hood', isUnlocked('seg:hood:istek') ? b.quests.length : 0);
+  const rentable = isUnlocked('seg:more:cadde') && [ownMinU - 1, ownMaxU + 1].some(u => b.units[u] === 'rent' && S.money >= unitDeposit(u));
   badge('more', rentable);
   // geniş ekran takip kutusu
   const T = b.today, next = GOALS.filter(g => !S.goalsDone.includes(g.id)).slice(0, 3);

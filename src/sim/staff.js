@@ -1,16 +1,18 @@
 // Baristalar (sipariş, yorgunluk, mola), komiler ve aday üretimi
-import { DRINKS, TYPES, NAMES, TRAITS } from '../config.js';
+import { DRINKS, TYPES, NAMES, TRAITS, XP } from '../config.js';
 import { S, B } from '../state.js';
 import { scene } from '../engine/scene.js';
 import { Mc, MAT } from '../engine/assets.js';
 import { makePerson } from '../engine/models.js';
 import { puff } from '../engine/fx.js';
 import { pick, rand, clamp } from '../utils.js';
-import { floatText, itemTag } from '../ui/overlay.js';
+import { floatText, itemTag, flyCoin } from '../ui/overlay.js';
+import { track, addXP } from './progress.js';
+import { note } from '../ui/toast.js';
 import { coin } from '../audio.js';
 import { bars, items, localToWorld, tileCenter, ownedDoors, ownX0, ownX1, approachTiles, blockedGrid, pathTiles, cleanItem, hasItem, refreshVitrin } from './grid.js';
-import { reflowQueue, chooseDrink, consume, evaluate } from './people.js';
-import { fairPrice, effPrice, prepTime, staffCharm, outageNow, fairWage } from './economy.js';
+import { reflowQueue, chooseDrink, consume, evaluate, walkLegs } from './people.js';
+import { fairPrice, effPrice, prepTime, staffCharm, outageNow, fairWage, beanStock } from './economy.js';
 import { offerArt, closeArt } from '../ui/minigame.js';
 import { warnOnce } from './day.js';
 
@@ -43,6 +45,13 @@ function startOrder(bar, c) {
   c.fresh = consume(id);
   bar.cur = c; bar.drinkId = id; bar.prog = 0; bar.need = prepTime(id, bar.barista);
   c.state = 'ordering'; c.drinkId = id; c.price = price; c.baristaName = bar.barista.owner ? 'patron' : bar.barista.name;
+  // VIP: aynı içecekten birkaç tane ister, toplu hazırlanır
+  if (c.special === 'vip') {
+    const can = DRINKS[id].beans ? Math.floor(beanStock() / DRINKS[id].beans) + 1 : 9;   // ilk bardak zaten ayrıldı
+    c.vipCount = Math.max(1, Math.min(c.vipCount || 2 + Math.floor(Math.random() * 2), can, DRINKS[id].milk ? B().milk + 1 : 9));
+    for (let k = 1; k < c.vipCount; k++) consume(id);
+    bar.need *= c.vipCount * 0.75; c.price = price * c.vipCount;
+  }
   if (S.latteArt && DRINKS[id].milk) offerArt(bar, c);
 }
 function finishOrder(bar) {
@@ -62,7 +71,15 @@ function finishOrder(bar) {
   S.sales[c.drinkId] = (S.sales[c.drinkId] || 0) + 1;
   S.typeCounts[c.type] = (S.typeCounts[c.type] || 0) + 1;
   floatText('+' + (c.price + tip + food) + ' ₺' + (c.food ? ' 🥐' : ''), c.headPos());
+  flyCoin(c.headPos());
   coin();
+  track('served'); track('revenue', c.price + tip + food); addXP(XP.serve);
+  if (c.food) track('food');
+  if (c.special === 'vip') {
+    const fast = c.f.vip > 0;
+    if (fast) { addXP(XP.vip); S.money += Math.round(c.price * .5); B().today.tips += Math.round(c.price * .5); }
+    note(fast ? `⭐ ${c.name} çok memnun kaldı! VIP bahşişi: +${Math.round(c.price * .5)} ₺` : `⭐ ${c.name} siparişini geç aldı, pek memnun değil.`, 4000);
+  }
   b.fatigue = Math.min(100, b.fatigue + 1.4 * (b.trait === 'dayanikli' ? .6 : 1));
   c.state = 'served';
   c.afterServe();
@@ -102,6 +119,18 @@ export function updateBars(dt) {
     } else if (body) body.rotation.y *= .9;
   }
 }
+// oyuncu bara dokununca barista hızlanır (aktif oyun)
+const lastHelp = new WeakMap();
+export function helpBar(bar) {
+  if (!bar?.cur || !bar.barista) return false;
+  const now = performance.now(); if (now - (lastHelp.get(bar) || 0) < 90) return true;
+  lastHelp.set(bar, now);
+  bar.prog += 0.35;
+  puff(localToWorld(bar, -0.18, 0.18).setY(0.75));
+  floatText('⚡', localToWorld(bar, 0, 0).setY(1.0), 'star');
+  track('taps');
+  return true;
+}
 function barTileOf(s) { const bar = bars().find(b => b.barista === s) || bars()[0]; return bar ? [bar.i, bar.j] : [ownX0() + 1, 1]; }
 
 // ---- komiler ----
@@ -121,11 +150,12 @@ class Worker {
       const target = this.path[0], dx = target.x - this.pos.x, dz = target.z - this.pos.z, dist = Math.hypot(dx, dz), step = 1.4 * this.staff.speed * dt;
       if (dist <= step) { this.pos.x = target.x; this.pos.z = target.z; this.path.shift(); } else { this.pos.x += dx / dist * step; this.pos.z += dz / dist * step; }
       if (dist > .001) this.mesh.rotation.y = Math.atan2(dx, dz);
-      this.mesh.position.set(this.pos.x, Math.abs(Math.sin(this.t * 11)) * .03, this.pos.z);
+      this.mesh.position.set(this.pos.x, Math.abs(Math.sin(this.t * 11)) * .018, this.pos.z);
+      walkLegs(this.mesh, Math.sin(this.t * 11) * .55);
       if (!this.path.length && this.onArrive) { const f = this.onArrive; this.onArrive = null; f(); }
       return;
     }
-    this.mesh.position.y = 0;
+    this.mesh.position.y = 0; walkLegs(this.mesh, 0);
     if (this.state === 'cleaning') {
       this.mesh.userData.body.rotation.y = Math.sin(this.t * 10) * .3;
       if ((this.timer -= dt) <= 0) {

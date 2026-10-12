@@ -1,5 +1,5 @@
 // Gün döngüsü: zaman, kapanış, gün sonu raporu, yeni gün, hava, borsa, tedarik
-import { CLOSE, DAY_START, MIN_PER_SEC, BEANS, BAG, MILK_PACK, MILK_PACK_COST, FOOD, DRINKS, HOODS, WEATHER, EVENTS, PEVENTS } from '../config.js';
+import { CLOSE, DAY_START, MIN_PER_SEC, BEANS, BAG, MILK_PACK, MILK_PACK_COST, FOOD, DRINKS, HOODS, WEATHER, EVENTS, PEVENTS, PACE } from '../config.js';
 import { S, B, save, newToday, seasonOf } from '../state.js';
 import { rand, pick, weightedPick, avg, randn, clamp } from '../utils.js';
 import { toast, note } from '../ui/toast.js';
@@ -9,7 +9,8 @@ import { updateBars, workers, genCandidates, assignBaristas, syncWorkers } from 
 import { items, hasItem, localToWorld, refreshVitrin } from './grid.js';
 import { beanStock, rating, rentOf, wagesOf, fairWage } from './economy.js';
 import { scheduleRegulars, updateRegulars } from './regulars.js';
-import { rollEvent, updateEvents, removeMusician } from './events.js';
+import { rollEvent, updateEvents, removeMusician, planDay } from './events.js';
+import { newDaily } from './progress.js';
 import { maybeOpenRival, rivalDaily } from './rival.js';
 import { checkGoals, questsEndOfDay, questsMorning } from './quests.js';
 import { passiveIncome } from './branches.js';
@@ -33,7 +34,7 @@ export function simulate(dt) {
   }
   if ((passT -= dt) <= 0) { spawnPasser(h); passT = 1 / passerRate(h) * rand(.5, 1.5); }
   updateRegulars();
-  updateEvents(h);
+  updateEvents(h, dt);
   updateBars(dt);
   updateRoasters(dt);
   for (const p of [...people]) p.update(dt);
@@ -51,7 +52,7 @@ function updateRoasters(dt) {
   for (const it of items) if (it.type === 'roaster') {
     const id = [b.activeBean, ...Object.keys(BEANS)].find(k => b.beans[k].g > 0);
     if (!on || !id) continue;
-    it.acc = (it.acc || 0) + dt / 0.8;
+    it.acc = (it.acc || 0) + dt * PACE / 0.8;
     while (it.acc >= 1 && b.beans[id].g > 0) { it.acc--; b.beans[id].g--; b.beans[id].h++; }
     it.mesh.userData.drum.rotation.z += dt * 4;
     it.mesh.userData.paddle.rotation.y += dt * 3;
@@ -151,7 +152,7 @@ export function startDay() {
   }
   for (const s of b.staff) s.breakT = 0;
   assignBaristas();
-  scheduleRegulars(); questsMorning();
+  scheduleRegulars(); questsMorning(); newDaily(); planDay();
   applyWeather();
   hideModal(); save();
   const W = WEATHER[S.weather.today];

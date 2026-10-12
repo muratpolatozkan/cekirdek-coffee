@@ -4,6 +4,10 @@ import { $ } from '../utils.js';
 import { overlay, placeEl, floatText } from './overlay.js';
 import { localToWorld } from '../sim/grid.js';
 import { sparkle, thud } from '../audio.js';
+import { track } from '../sim/progress.js';
+import { haptic } from './toast.js';
+
+const PATTERNS = ['💗 Kalp', '🌷 Lale', '🦢 Kuğu'];
 
 const offers = new Map();   // bar -> { btn, c }
 let game = null;
@@ -29,6 +33,8 @@ function openGame(bar) {
   game = { bar, c: o.c, start: performance.now(), z0, zw, pw: zw * .3, pos: 0 };
   $('artZone').style.left = z0 * 100 + '%'; $('artZone').style.width = zw * 100 + '%';
   $('artPerfect').style.left = (z0 + zw / 2 - game.pw / 2) * 100 + '%'; $('artPerfect').style.width = game.pw * 100 + '%';
+  const lv = Math.min(PATTERNS.length - 1, Math.floor((S.artStreak || 0) / 2));
+  box.querySelector('b').textContent = `🎨 Sıradaki desen: ${PATTERNS[lv]}${S.artStreak ? ` · ${S.artStreak} seri` : ''}`;
   box.style.display = 'block';
 }
 function endGame(result) {
@@ -36,9 +42,17 @@ function endGame(result) {
   const g = game; game = null;
   if (!g || !result) return;
   g.c.art = result;
-  if (result === 'perfect') { S.perfectArts++; B().today.arts++; sparkle(); }
-  else if (result === 'bad') thud();
-  const label = { perfect: '🎨 Mükemmel!', good: '🎨 Güzel', bad: '🎨 Dağıldı…' }[result];
+  let label;
+  // üst üste mükemmel yaptıkça desen zorlaşır ve memnuniyet artar
+  if (result === 'perfect') {
+    S.artStreak = (S.artStreak || 0) + 1; S.perfectArts++; B().today.arts++; track('arts'); sparkle(); haptic(20);
+    const lv = Math.min(PATTERNS.length - 1, Math.floor((S.artStreak - 1) / 2));
+    g.c.artLevel = lv; label = `${PATTERNS[lv]}! ${S.artStreak > 1 ? `(${S.artStreak} seri)` : ''}`;
+  } else {
+    S.artStreak = 0;
+    if (result === 'bad') { thud(); haptic(40); }
+    label = result === 'good' ? '🎨 Güzel' : '🎨 Dağıldı…';
+  }
   floatText(label, localToWorld(g.bar, 0, 0.3).setY(1.2), result === 'bad' ? 'bad' : 'star');
 }
 box.addEventListener('pointerdown', e => {

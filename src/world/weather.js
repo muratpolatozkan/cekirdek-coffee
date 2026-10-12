@@ -80,3 +80,4 @@ export function updateWeather(dt) {
     snowGeo.attributes.position.needsUpdate = true;
   }
 }
+export const precipActive = () => rain.visible || snow.visible;

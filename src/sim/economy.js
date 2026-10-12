@@ -51,7 +51,7 @@ export function priceAppeal() {
 // personelin anlık hız/güler yüzü (yorgunluk, moral, özellik)
 export const staffSpeed = s => s.speed * (s.fatigue > 70 ? 0.8 : 1) * (s.morale < 30 ? 0.85 : 1);
 export const staffCharm = s => s.charm + (s.trait === 'guler' ? 0.15 : 0) - (s.fatigue > 70 ? 0.2 : 0);
-export const prepTime = (id, s) => DRINKS[id].time * Math.pow(0.85, B().machine - 1) / staffSpeed(s) / (s.trait === 'hizli' && !DRINKS[id].milk ? 1.15 : 1);
+export const prepTime = (id, s) => DRINKS[id].time * 0.8 * Math.pow(0.85, B().machine - 1) / staffSpeed(s) / (s.trait === 'hizli' && !DRINKS[id].milk ? 1.15 : 1);
 export const fairWage = s => Math.round(((s.role === 'barista' ? 220 + (s.speed - .8) * 300 + (s.charm - .75) * 200 : 150 + (s.speed - .8) * 200 + (s.charm - .75) * 100) + (s.trait ? 30 : 0)) / 10) * 10;
 
 export const machineCost = () => [0, 1200, 2500, 4500, 8000][B().machine];

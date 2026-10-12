@@ -6,6 +6,7 @@ import { note } from '../ui/toast.js';
 import { rating, priceAppeal } from './economy.js';
 import { atmPerUnit } from './grid.js';
 import { buildRival } from '../world/street.js';
+import { isUnlocked } from './progress.js';
 
 export const RIVAL_X0 = GW + 1.5, RIVAL_W = 5;   // sağdaki köşe binası
 export const rivalDoorX = () => RIVAL_X0 + 3.5;
@@ -20,7 +21,7 @@ export const rivalFactor = () => rivalOpen() ? clamp(rivalShare() * 1.6 + .2, .5
 
 export function maybeOpenRival(b = B()) {
   const r = b.rival;
-  if (r.active || r.closed || b.age < HOODS[b.hood].rival.age) return;
+  if (r.active || r.closed || b.age < HOODS[b.hood].rival.age || !isUnlocked('rival')) return;
   r.active = true; r.health = 100; r.openedDay = S.day;
   if (b === B()) { note(`🏪 Sokağın köşesine rakip kahveci açıldı: ${rivalName(b)}! Puanın, fiyatın ve atmosferinle müşterilerini koru.`, 6000); buildRival(); }
 }

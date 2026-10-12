@@ -1,5 +1,5 @@
 // İnsanlar: caddeden geçen yayalar, müşteriler, müdavimler ve özel ziyaretçiler
-import { UD, SIDEWALK_Z, FAR_Z, STREET_X0, STREET_X1, MIN_PER_SEC, MAX_QUEUE, MAX_INSIDE, DRINKS, TYPES, NAMES, TXT, BEANS } from '../config.js';
+import { UD, SIDEWALK_Z, FAR_Z, STREET_X0, STREET_X1, MIN_PER_SEC, MAX_QUEUE, MAX_INSIDE, DRINKS, TYPES, NAMES, TXT, BEANS, PACE, XP } from '../config.js';
 import { S, B } from '../state.js';
 import { scene } from '../engine/scene.js';
 import { cyl, box, Mc, MAT } from '../engine/assets.js';
@@ -11,7 +11,9 @@ import { tileCenter, frontTile, bars, isDoor, inBounds, ownedDoors, ownX0, ownX1
   markDirty, blockedGrid, bfs, pathTiles, atmPerUnit, hasItem } from './grid.js';
 import { rating, beanQ, beanStock, fairPrice, priceAppeal, passMult, typeMult, weatherNow, season, peventNow, staffCharm, shopOpen } from './economy.js';
 import { rivalFactor, rivalOpen, rivalDoorX } from './rival.js';
-import { onRegularServed, onRegularLeft } from './regulars.js';
+import { onRegularServed, onRegularLeft, regularLine } from './regulars.js';
+import { disposeBaked } from '../engine/perf.js';
+import { track, addXP } from './progress.js';
 import { judgeInspection, onInfluencerReview } from './events.js';
 
 export let people = [];
@@ -36,7 +38,7 @@ export class Person {
   tile() { return { i: clamp(Math.floor(this.pos.x), ownX0(), ownX1() - 1), j: clamp(Math.floor(this.pos.z), 0, B().terrace ? UD : UD - 1) }; }
   go(points, onArrive) { this.path = points; this.onArrive = onArrive; }
   walkOn() { this.state = 'walk'; this.kind = 'passer'; this.go([V(this.dir > 0 ? STREET_X1 : STREET_X0, this.lane)], () => this.despawn()); }
-  despawn() { scene.remove(this.mesh); if (this.bubble) this.bubble.remove(); people = people.filter(p => p !== this); }
+  despawn() { scene.remove(this.mesh); disposeBaked(this.mesh); if (this.bubble) this.bubble.remove(); people = people.filter(p => p !== this); }
   say(html, dur = 2, cls = '') { this.setBubble(html, cls); this.sayT = dur; }
   setBubble(html, cls = '') {
     if (this.bubbleKey === html + cls) return;
@@ -66,8 +68,9 @@ export class Person {
       return this.walkOn();
     }
     this.kind = 'customer'; this.door = door; chime();
-    if (this.regular) this.say(`${this.regular.emoji} ${this.regular.name}`, 2.4, 'name');
+    if (this.regular) { const line = regularLine(this.regular); this.regular.lastLine = line; this.say(`${this.regular.emoji} ${this.regular.name}: “${line}”`, 3.6, 'name'); }
     if (this.special === 'influencer') this.say('📸 @kahvegezgini', 3, 'vip');
+    if (this.special === 'vip') this.say(`⭐ ${this.name}`, 3, 'vip');
     this.joinQueue(bar, door, entry);
   }
   joinQueue(bar, fromTile, prefix = []) {
@@ -115,7 +118,7 @@ export class Person {
       s.occ = this; this.seat = s; this.seatItem = it; this.approach = a; this.state = 'toSeat';
       this.go([...tiles, s.pos.clone()], () => {
         const T = TYPES[this.type];
-        this.state = 'sitting'; this.sitT = rand(...T.sitDur) * weatherNow().dur * (peventNow()?.sit ? 1.25 : 1);
+        this.state = 'sitting'; this.sitT = rand(...T.sitDur) * weatherNow().dur * (peventNow()?.sit ? 1.25 : 1) / Math.pow(PACE, .7);
         this.mesh.rotation.y = s.face; sitPose(this.mesh, s.h);
         if (this.type === 'ogrenci' && Math.random() < .7) { this.laptop = box(0.18, 0.012, 0.13, Mc(0x9aa0a6), 0, 0.03, 0.12); this.mesh.userData.legs.add(this.laptop); this.laptop.rotation.x = Math.PI / 2; }
       });
@@ -168,8 +171,9 @@ export class Person {
       if (!vip && Math.random() > chance) return;
       text = reviewText(this, stars);
     } else return;
-    const who = vip ? '@kahvegezgini · influencer' : this.regular ? `${this.regular.name} · müdavim` : `${this.name} · ${T.name}`;
-    addReview(stars, text, who, vip ? '📸' : this.regular ? this.regular.emoji : T.icon);
+    const who = vip ? '@kahvegezgini · influencer' : this.special === 'vip' ? `${this.name} · VIP` : this.regular ? `${this.regular.name} · müdavim` : `${this.name} · ${T.name}`;
+    addReview(stars, text, who, vip ? '📸' : this.special === 'vip' ? '⭐' : this.regular ? this.regular.emoji : T.icon);
+    if (stars === 5) { track('five'); addXP(XP.five); }
     floatText(starStr(stars), this.headPos().setY(1.15), 'star');
     if (vip) onInfluencerReview(stars);
   }
@@ -181,9 +185,10 @@ export class Person {
       if (dist <= step) { this.pos.x = target.x; this.pos.z = target.z; this.path.shift(); }
       else { this.pos.x += dx / dist * step; this.pos.z += dz / dist * step; }
       if (dist > 0.001) this.mesh.rotation.y = Math.atan2(dx, dz);
-      this.mesh.position.set(this.pos.x, Math.abs(Math.sin(this.t * 11)) * 0.03, this.pos.z);
+      this.mesh.position.set(this.pos.x, Math.abs(Math.sin(this.t * 11)) * 0.018, this.pos.z);
+      walkLegs(this.mesh, Math.sin(this.t * 11) * 0.55);
       if (!this.path.length && this.onArrive) { const f = this.onArrive; this.onArrive = null; f(); }
-    } else this.mesh.position.y = 0;
+    } else { this.mesh.position.y = 0; walkLegs(this.mesh, 0); }
 
     if (this.kind !== 'customer') { if (this.sayT > 0 && (this.sayT -= dt) <= 0) this.setBubble(''); return; }
     const T = TYPES[this.type];
@@ -205,13 +210,17 @@ export class Person {
     if (this.sayT > 0) { if ((this.sayT -= dt) <= 0) this.setBubble(''); }
     else if (this.state === 'ordering' && this.bar) {
       const d = DRINKS[this.bar.drinkId];
-      this.setBubble(`${d.icon} ${d.name}${this.art ? ' 🎨' : ''}<div class="bar"><i></i></div>`);
+      this.setBubble(`${this.vipCount ? `⭐ ${this.vipCount}× ` : ''}${d.icon} ${d.name}${this.art ? ' 🎨' : ''}<div class="bar"><i></i></div>`, this.vipCount ? 'vip' : '');
       if (this.progEl) this.progEl.style.width = Math.min(100, this.bar.prog / this.bar.need * 100) + '%';
     } else if (this.state === 'queued' && this.wait > T.patience * .6) this.setBubble('⏰');
     else this.setBubble('');
   }
 }
 
+export function walkLegs(mesh, sw) {
+  const { legL, legR } = mesh.userData;
+  if (legL) { legL.rotation.x = sw; legR.rotation.x = -sw; }
+}
 export function addReview(stars, text, who, icon, b = B()) {
   b.reviews.unshift({ stars, text, who, icon, day: S.day });
   if (b.reviews.length > 80) b.reviews.length = 80;
@@ -278,7 +287,8 @@ export function evaluate(c, barista) {
   if (c.food) f.food = .2;
   if (d.sig) f.taste = .3 - .3 * Math.abs(S.menu[c.drinkId].sweet - T.sweet);
   if (c.fresh) { const diff = Math.abs(ROAST_ORDER[B().roast] - ROAST_ORDER[T.roast]); f.roast = diff === 0 ? .3 : diff === 2 ? -.15 : 0; }
-  if (c.art) f.art = { perfect: .5, good: .25, bad: -.1 }[c.art];
+  if (c.art) f.art = { perfect: .5, good: .25, bad: -.1 }[c.art] + (c.art === 'perfect' ? (c.artLevel || 0) * .1 : 0);
+  if (c.special === 'vip') f.vip = c.waitTotal * MIN_PER_SEC < 25 ? .6 : -.4;
   const E = peventNow(); if (E && (E.types?.[c.type] || E.atm)) f.pevent = .2;
   c.sat = 3.5 + Object.values(f).reduce((a, b) => a + b, 0) + rand(-.35, .35);
 }
@@ -322,7 +332,7 @@ export function enterChance(type) {
 }
 export function passerRate(h) {
   const base = h < 7.5 ? .15 : h < 10 ? .7 : h < 12 ? .4 : h < 14 ? .65 : h < 17 ? .4 : h < 19 ? .6 : h < 22 ? .35 : .12;
-  return base * passMult(h);
+  return base * passMult(h) * PACE;
 }
 export function spawnPasser(h) {
   if (people.length >= 85) return;

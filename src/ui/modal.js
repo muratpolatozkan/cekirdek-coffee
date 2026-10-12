@@ -39,14 +39,21 @@ export function showIntro() {
   showModal(`<h2>${S.brand.icon} Çekirdek Coffee</h2>
     ${meta.stars ? `<p>⭐ <b>${meta.stars} franchise yıldızın</b> var: daha fazla başlangıç parası, daha kalabalık caddeler ve daha yüksek adil fiyat.</p>` : ''}
     <p>Çınar Sokak’ta, Bakkal Hasan ile Kuaför Ahmet’in arasında küçük bir kahveci açtın. Hedefin, burayı mahallenin en sevilen 3. dalga kahvecisi yapmak.</p>
-    <ul><li>🚶 Caddeden geçenler; <b>puanın</b>, <b>atmosferin</b> ve <b>fiyatların</b> uygunsa içeri girer.</li>
-    <li>☕ Her espresso barın başında bir <b>barista</b> olmalı. Şimdilik barista sensin.</li>
-    <li>🎨 Sütlü siparişlerde barın üstünde <b>Latte art</b> çıkar. Dokunup doğru anda durdur!</li>
-    <li>👋 Mahallenin <b>müdavimleri</b> var. Onları mutlu tut, arkadaşlarını getirsinler.</li>
-    <li>🌦️ Her gün hava ve olaylar değişir. Gün sonundaki raporda yarının tahminini görürsün.</li>
-    <li>🔑 Yandaki dükkanları kiralayıp büyü. Sonra yeni mahallelerde şube aç.</li></ul>
-    <p class="note">Alttaki çubuk: 🛠️ İnşa · 👥 Ekip · ☕ Dükkan · 👋 Mahalle · ☰ Daha. Haritayı tek parmakla kaydır, iki parmakla yakınlaştır.</p>
+    <p>Kısa bir rehber sana ilk adımları gösterecek. Servis yaptıkça seviye atlayacak ve yeni özellikler açacaksın. ☕</p>
     <div class="actions"><button class="btn primary block" data-act="closeIntro">☕ Dükkanı aç</button></div>`);
+}
+export function showOffline(off) {
+  const h = Math.floor(off.mins / 60), m = off.mins % 60;
+  showModal(`<div class="center"><div class="bigemoji">🌙</div><h2>Tekrar hoş geldin!</h2>
+    <p>Sen ${h ? `${h} saat ` : ''}${m} dakika yokken dükkanın çalışmaya devam etti.</p>
+    <div class="earn">+${fmt(off.amount)}</div>
+    ${off.capped ? '<p class="note">En fazla 8 saatlik kazanç birikir.</p>' : ''}</div>
+    <div class="actions"><button class="btn primary block" data-act="closeModal">💰 Topla</button></div>`);
+}
+export function showLevelUp(l, title, unlocks) {
+  showModal(`<div class="center"><div class="bigemoji">🏅</div><h2>Seviye ${l}!</h2><p><b>${esc(title)}</b></p></div>
+    ${unlocks.length ? `<p>Yeni açılanlar:</p><ul>${unlocks.map(u => `<li>${u}</li>`).join('')}</ul>` : '<p class="note">Tebrikler, ün kazanmaya devam!</p>'}
+    <div class="actions"><button class="btn primary block" data-act="closeModal">Harika!</button></div>`);
 }
 export function showNews() {
   showModal(`<h2>🎉 Büyük güncelleme!</h2>

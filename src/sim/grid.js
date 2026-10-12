@@ -4,6 +4,8 @@ import { S, B, saveHooks } from '../state.js';
 import { scene } from '../engine/scene.js';
 import { cyl, MAT } from '../engine/assets.js';
 import { makeModel } from '../engine/models.js';
+import { bake, disposeBaked, Q } from '../engine/perf.js';
+import { requestRender } from '../engine/scene.js';
 import { V } from '../utils.js';
 import { floatText } from '../ui/overlay.js';
 import { toast } from '../ui/toast.js';
@@ -60,9 +62,12 @@ export function approachTiles(it, b = blockedGrid()) {
 export function addItem(data) {
   const it = { ...data, queue: [], cur: null, prog: 0, barista: null };
   it.mesh = makeModel(it.type);
+  it.mesh.traverse(o => { if (o.isLight) o.visible = Q.lampLights; });
+  bake(it.mesh);
   it.mesh.position.copy(tileCenter(it.i, it.j));
   it.mesh.rotation.y = it.r * Math.PI / 2;
   scene.add(it.mesh);
+  requestRender();
   const def = CATALOG[it.type];
   if (def.seats) it.seats = def.seats.map(s => {
     const pos = localToWorld(it, s.x, s.z), f = localToWorld(it, s.fx, s.fz);
@@ -73,7 +78,7 @@ export function addItem(data) {
   return it;
 }
 function disposeItem(it) {
-  scene.remove(it.mesh);
+  scene.remove(it.mesh); disposeBaked(it.mesh); requestRender();
   if (it.tagEl) it.tagEl.remove();
   if (it.baristaMesh) scene.remove(it.baristaMesh);
   for (const s of it.seats || []) if (s.cupMesh) scene.remove(s.cupMesh);

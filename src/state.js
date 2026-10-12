@@ -53,6 +53,8 @@ export function newState() {
     brand: { name: 'ÇEKİRDEK', color: 'yesil', icon: '☕' },
     goalsDone: [], lastReport: null, sound: true, music: true, latteArt: true, introSeen: false, tipsShown: {},
     nextId: 2, activeBranch: 0, branches: [],
+    xp: 0, levelSeen: 1, daily: null, tut: 0, customs: [], artStreak: 0, rush: null, lastSeen: Date.now(),
+    battery: matchMedia('(pointer: coarse)').matches,
   };
 }
 
@@ -65,8 +67,10 @@ function normalizeBranch(b) {
 }
 function normalize(L) {
   const base = newState();
-  const menu = {};
+  const menu = { ...(L.menu || {}) };   // atölye tariflerinin girdileri de korunur
   for (const id of Object.keys(DRINKS)) menu[id] = { ...base.menu[id], ...(L.menu?.[id] || {}) };
+  // seviye sistemi öncesinden gelen kayıt: geçmişe göre tecrübe puanı ver, rehberi atla
+  if (L.xp == null) { L.xp = (L.served || 0) + (L.goalsDone?.length || 0) * 15; L.tut = 'done'; L.levelSeen = 99; }
   return { ...base, ...L, menu, market: { ...base.market, ...L.market }, marketPrev: { ...base.marketPrev, ...L.marketPrev },
     weather: { ...base.weather, ...L.weather }, brand: { ...base.brand, ...L.brand },
     branches: (L.branches || []).map(normalizeBranch) };
@@ -88,6 +92,7 @@ function migrateV2(L) {
   });
   for (const id of Object.keys(L.menu || {})) if (st.menu[id]) Object.assign(st.menu[id], L.menu[id]);
   st.branches = [b];
+  st.xp = null;   // tecrübe puanı geçmişten hesaplansın
   return normalize(st);
 }
 
@@ -107,6 +112,7 @@ export function loadState() {
 export function save() {
   if (resetting || !S.branches) return;
   for (const h of saveHooks) h();
+  S.lastSeen = Date.now();
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {}
 }
 export function wipeSave() {

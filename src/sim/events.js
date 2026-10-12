@@ -1,7 +1,10 @@
 // Rastgele günlük olaylar (influencer, denetim, kesinti…) ve etkinlik müzisyeni
-import { EVENTS, UD } from '../config.js';
+import { EVENTS, UD, VIPS, XP, TYPES } from '../config.js';
 import { S, B } from '../state.js';
-import { pick, rand } from '../utils.js';
+import { pick, rand, clamp, fmt } from '../utils.js';
+import { isUnlocked, level, addXP } from './progress.js';
+import { confetti } from '../ui/overlay.js';
+import { coin } from '../audio.js';
 import { note, toast } from '../ui/toast.js';
 import { scene } from '../engine/scene.js';
 import { makePerson } from '../engine/models.js';
@@ -9,15 +12,28 @@ import { allSeats, tileCenter, ownX0, ownX1, itemAt, bars, frontTile } from './g
 import { spawnVisitor, addReview } from './people.js';
 import { shopOpen, outageNow } from './economy.js';
 
+// sabah planı: akın saatleri ve VIP ziyareti
+export function planDay() {
+  S.rushPlan = isUnlocked('rush') ? [8.6, 12.4, 17.8].filter(() => Math.random() < .45) : [];
+  S.vipAt = isUnlocked('vip') && Math.random() < .5 ? rand(10, 18) : null;
+  S.rush = null;
+}
 export function rollEvent() {
-  if (S.day < 3 || Math.random() > .45) return null;
+  if (!isUnlocked('events') || Math.random() > .45) return null;
   const id = pick(Object.keys(EVENTS));
   const ev = { id, done: false };
   if (id === 'influencer') ev.hour = rand(10, 17.5);
   if (id === 'denetim') ev.hour = rand(9.5, 19);
   return ev;
 }
-export function updateEvents(h) {
+export function updateEvents(h, dt) {
+  updateRush(h, dt);
+  if (S.vipAt && h >= S.vipAt && shopOpen()) {
+    S.vipAt = null;
+    const v = pick(VIPS);
+    spawnVisitor(v.type, { special: 'vip', name: v.name, look: v.look });
+    note(`⭐ VIP müşteri geliyor: ${v.name}! Siparişini hızlı hazırla, büyük bahşiş bırakır.`, 4500);
+  }
   const ev = S.event;
   if (ev && !ev.done && ev.hour && h >= ev.hour && shopOpen()) {
     ev.done = true;
@@ -72,3 +88,30 @@ function freeSpot() {
     if (!itemAt(i, j) && !fronts.some(f => f.i === i && f.j === j)) return { i, j };
   return null;
 }
+
+// ---- yoğun saat akını: kısa sürede çok müşteri gelir, hedefi tutturursan ödül ----
+function updateRush(h, dt) {
+  if (!S.rush && S.rushPlan?.length && h >= S.rushPlan[0] && shopOpen() && bars().some(b => b.barista)) {
+    S.rushPlan.shift();
+    const target = clamp(bars().filter(b => b.barista).length * 4 + 2, 5, 14);
+    S.rush = { t: 60, target, base: S.daily?.m.served || 0, spawnLeft: target + 2, spawnT: 0, done: false };
+    note(`🏃 ${h < 11 ? 'Sabah' : h < 15 ? 'Öğle' : 'Akşam'} akını! 60 saniyede ${target} servis yap. Bara dokunarak hızlandır!`, 4500);
+  }
+  const r = S.rush; if (!r || r.done) return;
+  r.t -= dt;
+  if (r.spawnLeft > 0 && (r.spawnT -= dt) <= 0) {
+    r.spawnLeft--; r.spawnT = rand(.8, 1.8);
+    spawnVisitor(pick(Object.keys(TYPES)), {});
+  }
+  const count = (S.daily?.m.served || 0) - r.base;
+  if (count >= r.target || r.t <= 0) {
+    r.done = true;
+    if (count >= r.target) {
+      const prize = 250 + level() * 100;
+      S.money += prize; addXP(XP.rush); confetti(40); coin();
+      note(`🏆 Akını başarıyla karşıladın! ${count}/${r.target} servis · +${fmt(prize)}`, 4500);
+    } else note(`⌛ Akın bitti: ${count}/${r.target} servis. Bir dahakine daha çok bar ve barista!`, 4000);
+    setTimeout(() => { if (S.rush === r) S.rush = null; }, 3000);
+  }
+}
+export const rushInfo = () => S.rush && !S.rush.done ? { count: (S.daily?.m.served || 0) - S.rush.base, target: S.rush.target, t: Math.max(0, Math.ceil(S.rush.t)) } : null;

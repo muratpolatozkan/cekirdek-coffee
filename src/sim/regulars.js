@@ -1,12 +1,34 @@
 // Müdavimler: adı ve hikayesi olan, her gün belli saatte gelen müşteriler
-import { REGULARS, REGULAR_STORIES, REGULAR_EMOJI, REGULAR_FAV, REGULAR_HOUR, HOODS, TYPES, NAMES } from '../config.js';
+import { REGULARS, REGULAR_STORIES, REGULAR_EMOJI, REGULAR_FAV, REGULAR_HOUR, HOODS, TYPES, NAMES, LINES, REG_QUESTS, BEANS, XP } from '../config.js';
 import { S, B } from '../state.js';
 import { pick, rand, clamp, weightedPick } from '../utils.js';
 import { randomLook } from '../engine/models.js';
 import { note } from '../ui/toast.js';
 import { floatText } from '../ui/overlay.js';
 import { spawnVisitor, addReview } from './people.js';
-import { shopOpen } from './economy.js';
+import { shopOpen, weatherNow } from './economy.js';
+import { hasItem } from './grid.js';
+import { track, addXP } from './progress.js';
+import { confetti } from '../ui/overlay.js';
+
+// içeri girerken söylediği söz: havaya ve sadakatine göre
+export function regularLine(r) {
+  const W = weatherNow();
+  if (W.precip === 'rain' && Math.random() < .35) return pick(LINES.rain);
+  if (W.precip === 'snow' && Math.random() < .35) return pick(LINES.snow);
+  if (W.temp > 0 && Math.random() < .35) return pick(LINES.hot);
+  const tier = r.loyalty >= 75 ? 'high' : r.loyalty >= 40 ? 'mid' : 'low';
+  return pick(LINES[r.type][tier]);
+}
+// küçük hikaye görevleri
+const QUEST_CHECK = {
+  machine3: b => b.machine >= 3,
+  sofa: () => hasItem('sofa'),
+  bean4: b => BEANS[b.activeBean].q >= 4,
+  croissant: b => hasItem('vitrin') && b.croissant > 0,
+  walldecor: b => Object.keys(b.decor.slots).length > 0,
+};
+export const regQuestReady = r => r.quest && !r.quest.done && QUEST_CHECK[r.quest.check](B());
 
 const fresh = r => ({ ...r, loyalty: 50, status: 'active', visits: 0, milestone: false });
 export function genRegulars(b) {
@@ -57,8 +79,24 @@ function milestone(r) {
 }
 export function onRegularServed(c) {
   const r = c.regular;
-  r.visits++;
+  r.visits++; track('regulars');
   changeLoyalty(r, clamp((c.sat - 3.2) * 10, -15, 12) + (c.missedFav ? -10 : 0), c.headPos().setY(1.3));
+  // hikaye görevi: sadakat 60'ı geçince bir istekte bulunur, istek karşılanınca bir sonraki gelişinde teşekkür eder
+  if (!r.quest && r.loyalty >= 60) {
+    const q = REG_QUESTS[r.type];
+    r.quest = { check: q.check, text: q.text, thanks: q.thanks, done: false };
+    c.say(`📖 ${r.name}: “${q.text}”`, 4.5, 'name');
+    note(`📖 ${r.name} senden bir şey istiyor: ${q.text}`, 5000);
+    return;
+  }
+  if (regQuestReady(r)) {
+    r.quest.done = true;
+    changeLoyalty(r, 20, null); S.money += 800; addXP(XP.regularQuest);
+    c.say(`💚 ${r.name}: “${r.quest.thanks}”`, 4.5, 'name');
+    note(`📖 ${r.name}: “${r.quest.thanks}” (+800 ₺, sadakat +20)`, 5000);
+    confetti(20);
+    return;
+  }
   if (r.loyalty >= 80 && Math.random() < .3) {
     c.say('Arkadaşımı da getirdim! 😊', 2.5);
     setTimeout(() => { if (shopOpen()) spawnVisitor(r.type, {}); }, 1200);
