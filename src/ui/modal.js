@@ -1,7 +1,8 @@
 // Ortadaki pencere: gün sonu raporu, giriş, fotoğraf önizleme
 import { HOODS, WEATHER, SEASONS } from '../config.js';
-import { S, meta } from '../state.js';
+import { S, B, meta } from '../state.js';
 import { $, fmt, starStr, esc } from '../utils.js';
+import { rentBlock, rentChecks, unitDeposit, unitRent, isAdjacent } from '../sim/expand.js';
 
 export function showModal(html) { $('modalBox').innerHTML = html; $('modal').style.display = 'flex'; }
 export function hideModal() { $('modal').style.display = 'none'; }
@@ -82,6 +83,18 @@ export function showExport(code) {
     <textarea readonly style="width:100%;height:120px;font-size:11px;border-radius:12px;border:1px solid var(--line);padding:8px;user-select:text;-webkit-user-select:text">${code}</textarea>
     <div class="actions"><button class="btn primary block" data-act="closeModal">Tamam</button></div>`);
   const ta = document.querySelector('#modalBox textarea'); ta?.focus(); ta?.select();
+}
+// kiralık dükkan kartı: ne kazandırır, ne kadar tutar, şartlar
+export function showRentCard(u) {
+  const blk = rentBlock(u), checks = rentChecks(u);
+  showModal(`<div class="center"><div class="bigemoji">🔑</div><h2>Kiralık dükkan</h2>
+    <p>Yandaki dükkanı kiralarsan aradaki duvar yıkılır, ${B().units.filter(x => x === 'own').length === 1 ? 'dükkanın iki katına çıkar.' : 'dükkanın daha da büyür.'}</p></div>
+    <table><tr><td>Depozito (bir kere)</td><td>${fmt(unitDeposit(u))}</td></tr><tr><td>Günlük kira</td><td>${fmt(unitRent(u))}</td></tr></table>
+    <ul style="list-style:none;padding:0"><li>✨ Daha geniş vitrin: caddeden <b>%20 daha çok</b> kişi içeri girer</li><li>🪑 25 karelik yeni alan: daha çok masa ve bar</li><li>🚪 Yeni bir kapı: içerisi daha az sıkışır</li></ul>
+    <div class="forecast">${checks.map(c => `${c.ok ? '✅' : '⬜'} ${c.text}`).join('<br>')}</div>
+    ${!blk && S.money - unitDeposit(u) < 800 ? `<div class="warn">⚠️ Kiralarsan elinde ${fmt(S.money - unitDeposit(u))} kalacak. Çekirdek, süt ve gün sonu kirası (${fmt(unitRent(u))} fazladan) için para gerekecek.</div>` : ''}
+    <div class="actions"><button class="btn block" data-act="closeModal">Vazgeç</button>
+    <button class="btn primary block" data-act="rent" data-arg="${u}" ${blk ? 'disabled' : ''}>${blk ? blk : `🔨 Kirala · ${fmt(unitDeposit(u))}`}</button></div>`);
 }
 let lastPhoto = null;
 export const getLastPhoto = () => lastPhoto;

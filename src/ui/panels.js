@@ -22,13 +22,17 @@ import { isUnlocked, unlockLevel, levelProgress, levelTitle, unlocksOf, dailyPro
 import { createCustom, autoName, customDef } from '../sim/customs.js';
 import { regQuestReady } from '../sim/regulars.js';
 import { applyQuality } from '../quality.js';
+import { rentBlock, rentChecks, rentUnit, neighborProgress, unitInfo, unitCenter, isAdjacent } from '../sim/expand.js';
+import { setCamTarget, setZoom, camera } from '../engine/scene.js';
+import { showRentCard } from './modal.js';
+import { confetti } from './overlay.js';
 
 const SHEETS = {
   build: { title: '🛠️ İnşa', segs: [['oturma', '🪑 Oturma'], ['ekipman', '☕ Ekipman'], ['dekor', '🪴 Dekor'], ['arac', '✋ Taşı / Sat']] },
   staff: { title: '👥 Ekip', segs: [['ekip', 'Ekibim'], ['aday', 'Adaylar']] },
   shop: { title: '☕ Dükkan', segs: [['menu', '📋 Menü'], ['stok', '📦 Stok'], ['gelistir', '⬆️ Geliştir'], ['atolye', '🧪 Atölye']] },
   hood: { title: '👋 Mahalle', segs: [['mudavim', 'Müdavimler'], ['istek', 'İstekler'], ['rakip', 'Rakip'], ['etkinlik', 'Etkinlik'], ['yorum', 'Yorumlar']] },
-  more: { title: '☰ Daha fazla', segs: [['cadde', '🏠 Cadde'], ['dekor', '🎨 Dekor'], ['istatistik', '📊 İstatistik'], ['hedef', '🎯 Hedefler'], ['ayar', '⚙️ Ayarlar']] },
+  more: { title: '☰ Daha fazla', segs: [['cadde', '🏠 Genişlet'], ['dekor', '🎨 Dekor'], ['istatistik', '📊 İstatistik'], ['hedef', '🎯 Hedefler'], ['ayar', '⚙️ Ayarlar']] },
 };
 export let sheet = null;
 const segOf = {};
@@ -208,13 +212,22 @@ const R = {
     const b = B();
     if (sg === 'cadde') {
       const H = HOODS[b.hood];
-      let h = `<p class="note">${H.icon} <b>${H.name}</b>: ${H.desc} Yanındaki dükkan kiralık olunca kiralayıp duvarı yıkabilirsin.</p>`;
+      // caddenin kuşbakışı şeridi: 4 dükkan yan yana
+      let h = `<p class="note">${H.icon} <b>${H.name}</b> · Yandaki dükkan kiralık olunca kiralayıp aradaki duvarı yıkabilirsin. Haritadaki 🔑 tabelaya dokunarak da kiralayabilirsin.</p>
+        <div class="strip">${b.units.map((st, u) => { const inf = unitInfo(u), ok = st === 'rent' && !rentBlock(u);
+          return `<button class="lot ${st}${ok ? ' ready' : ''}" data-act="lot" data-arg="${u}"><span>${inf.icon}</span><small>${st === 'own' ? 'Senin' : st === 'rent' ? 'Kiralık' : inf.name.split(' ')[0]}</small></button>`; }).join('')}</div>`;
       b.units.forEach((st, u) => {
-        const U = H.units[u], adj = u === ownMinU - 1 || u === ownMaxU + 1;
-        if (st === 'own') h += item({ ic: '✅', t: u === 1 ? 'İlk dükkanın' : 'Ek alan', s: `Kira ${fmt(unitRent(u))} / gün` });
-        else if (st === 'occupied') h += item({ dim: true, ic: NEIGHBORS[U.kind].icon, t: NEIGHBORS[U.kind].name, s: U.hint });
-        else h += item({ ic: '🔑', t: 'Kiralık dükkan', s: `Depozito ${fmt(unitDeposit(u))} · Kira ${fmt(unitRent(u))} / gün${adj ? '' : '<br>Önce aradaki dükkanı kiralamalısın.'}`,
-          ac: btn('rent', u, 'Kirala', 'primary', !adj || S.money < unitDeposit(u)) });
+        const U = H.units[u], inf = unitInfo(u);
+        if (st === 'own') { h += item({ ic: '✅', t: inf.name, s: `Kira ${fmt(unitRent(u))} / gün` }); return; }
+        if (st === 'occupied') {
+          const pr = neighborProgress(u);
+          h += item({ dim: true, ic: inf.icon, t: inf.name, s: pr.length ? 'Şartlar tamamlanınca dükkanını bırakıp gidecek ve burası kiralık olacak:' : 'Bu dükkan kiralık değil.',
+            extra: pr.map(p => `<div class="mlabel"><span>${p.label}</span><span>${p.cur} / ${p.need}</span></div>${meter(Math.min(100, p.cur / p.need * 100), p.cur >= p.need ? '' : 'warn')}`).join('') });
+          return;
+        }
+        const blk = rentBlock(u);
+        h += item({ col: true, ic: '🔑', t: 'Kiralık dükkan', s: `Depozito ${fmt(unitDeposit(u))} · günlük kira ${fmt(unitRent(u))}<br>${rentChecks(u).map(c => `${c.ok ? '✅' : '⬜'} ${c.text}`).join('<br>')}`,
+          ac: btn('rent', u, blk ? blk : `🔨 Kirala · ${fmt(unitDeposit(u))}`, 'primary', !!blk) });
       });
       h += `<p class="note">Günlük sabit gider: kira ${fmt(rentOf())} + maaşlar ${fmt(wagesOf())} = <b>${fmt(rentOf() + wagesOf())}</b></p><div class="sec">Şubeler</div>`;
       S.branches.forEach((br, k) => { const HB = HOODS[br.hood], last = br.histNet[br.histNet.length - 1];
@@ -395,10 +408,19 @@ const ACT = {
     if (k === 'terrace' && !b.terrace && spend(TERRACE_COST)) { b.terrace = true; buildUnits(); toast('⛱️ Teras açıldı! İnşa menüsünden kaldırıma masa koyabilirsin.', 4500); }
   },
   rent(u) {
-    u = +u; const b = B();
-    if (b.units[u] !== 'rent' || !(u === ownMinU - 1 || u === ownMaxU + 1) || !spend(unitDeposit(u))) return;
-    b.units[u] = 'own'; recomputeBounds(); buildUnits();
-    note('🔨 Duvar yıkıldı! Dükkanın büyüdü. Yeni alana eşya yerleştirebilirsin.', 4000);
+    u = +u;
+    if (!rentUnit(u)) { toast(rentBlock(u) || 'Kiralanamadı.'); return; }
+    // kutlama: pencereleri kapat, kamerayı yeni alana götür
+    hideModal(); closeSheet();
+    setCamTarget(unitCenter(u).clone().setZ(3.7)); if (camera.zoom > 1.3) setZoom(1.3);
+    confetti(60); haptic(30);
+    note('🔨 Duvar yıkıldı! Dükkanın büyüdü.', 3500);
+    setTimeout(() => toast('🛠️ Yeni alana masa ve bar koymak için alttan İnşa’ya dokun.', 4500), 1800);
+  },
+  lot(u) {
+    u = +u; const st = B().units[u];
+    if (st === 'rent') { showRentCard(u); return; }
+    setCamTarget(unitCenter(u).clone().setZ(3.7)); closeSheet();
   },
   switch(k) { closeSheet(); switchBranch(+k); },
   openBranch(h) { closeSheet(); openBranch(h); },

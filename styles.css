@@ -296,3 +296,20 @@ body.coach-on #toasts { top: calc(var(--top-h, 110px) + 150px); }
   #toasts { top: calc(var(--top-h, 60px) + 8px); }
   body.coach-on #toasts { top: calc(var(--top-h, 60px) + 140px); }
 }
+
+/* ---------- genişletme ---------- */
+.plot { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; background: rgba(255,253,249,.96); border: 2px dashed #b9a88f;
+  border-radius: 14px; padding: 6px 12px; font-size: 13px; font-weight: 800; line-height: 1.25; text-align: center; box-shadow: 0 4px 14px rgba(40,25,10,.2); color: var(--ink); white-space: nowrap; }
+.plot small { font-weight: 600; color: var(--muted); font-size: 11px; }
+.plot b { color: var(--accent); }
+.plot.ok { border: 2px solid var(--gold); animation: pulse 1s ease-in-out infinite alternate; }
+.strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 0 0 12px; padding: 6px; background: #d8cfc2; border-radius: 16px; }
+.lot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 70px; border-radius: 12px; background: #efe9e0; font-size: 22px; }
+.lot small { font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.lot.own { background: #e3f1ea; box-shadow: inset 0 0 0 2px var(--accent); }
+.lot.rent { background: #fffdf9; border: 2px dashed #b9a88f; }
+.lot.rent.ready { border: 2px solid var(--gold); animation: lotglow 1s ease-in-out infinite alternate; }
+@keyframes lotglow { to { box-shadow: 0 0 0 5px rgba(224,161,0,.35); } }
+.plot.edge[data-dir=right]::after { content: ' ➡️'; }
+.plot.edge[data-dir=left]::before { content: '⬅️ '; }
+.plot.edge { display: flex; align-items: center; gap: 4px; }

@@ -29,6 +29,7 @@ import { itemTag, placeEl, confetti } from './ui/overlay.js';
 import { takePhoto } from './ui/photo.js';
 import { toast } from './ui/toast.js';
 import { updateTutorial } from './ui/tutorial.js';
+import { updatePlots } from './ui/plots.js';
 import { sparkle } from './audio.js';
 
 // ---- durum ve dünya ----
@@ -97,7 +98,7 @@ function checkLevelUp() {
   showLevelUp(l, levelTitle(l), [...new Set(names)]); confetti(60); sparkle();
 }
 
-let uiT = 0, saveT = 0, shadowT = 0, frameAcc = 0;
+let uiT = 0, saveT = 0, shadowT = 0, frameAcc = 0, idleT = 0;
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   frameAcc += clock.getDelta();
@@ -108,12 +109,15 @@ renderer.setAnimationLoop(() => {
   if (dt > 0 && S.phase !== 'report') simulate(dt);
   updateStreet(dt); updateUnits(dt); updatePuffs(dt); updateWeather(raw); updateArt();
   setDayLight(S.time / 60);
-  updateTags();
+  updateTags(); updatePlots();
   if ((uiT += raw) > 0.3) { uiT = 0; refreshUI(); if (sheet) renderPanel(); updateTutorial({ speed: () => speed, setSpeed }); checkLevelUp(); }
   if ((saveT += raw) > 5) { saveT = 0; save(); }
-  // zaman akmıyorsa ve bir değişiklik yoksa çizme (duraklatılmış oyun pil yemesin)
+  // zaman akmıyorsa ve bir değişiklik yoksa seyrek çiz (saniyede 4 kare): pil yemesin ama
+  // tarayıcı görüntüyü silerse (iOS'ta panel açılınca / arka plandan dönünce) ekran boş kalmasın
   const wanted = takeRenderRequest();
-  if (dt === 0 && !wanted && !precipActive()) return;
+  idleT += raw;
+  if (dt === 0 && !wanted && !precipActive() && idleT < 0.25) return;
+  idleT = 0;
   // gölgeleri her karede değil, aralıklarla güncelle
   shadowT += raw;
   if (wanted || shadowT > (Q.battery ? 0.25 : 0.05)) { renderer.shadowMap.needsUpdate = true; shadowT = 0; }
@@ -126,7 +130,7 @@ document.addEventListener('visibilitychange', () => {
   // geri dönünce: sen yokken kazanç
   const off = offlineEarnings();
   if (off && !isModalOpen()) showOffline(off);
-  requestRender();
+  requestRender(); renderer.shadowMap.needsUpdate = true;
 });
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

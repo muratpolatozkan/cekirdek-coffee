@@ -8,6 +8,9 @@ import { items, bars, tileCenter } from '../sim/grid.js';
 import { beanStock } from '../sim/economy.js';
 import { addXP, level } from '../sim/progress.js';
 import { confetti } from './overlay.js';
+import { rentBlock, unitCenter } from '../sim/expand.js';
+import { NU } from '../config.js';
+const rentableUnit = () => { for (let u = 0; u < NU; u++) if (B().units[u] === 'rent' && !rentBlock(u)) return u; return -1; };
 
 const tables = () => items.filter(i => i.type === 'table').length;
 const busyBar = () => bars().find(b => b.cur);
@@ -32,6 +35,7 @@ const TIPS = [
   { id: 'angry', when: () => B().today.angry > 0, t: '😠 Bir müşteri beklemekten sıkılıp gitti. Bara dokunarak hızlandır, sıra kısa kalsın.' },
   { id: 'dirty2', when: () => dirtyItem(), t: '🧽 Masada bardak kaldı. <b>Dokunarak topla</b>, kirli masaya kimse oturmaz.', world: () => at(dirtyItem()) },
   { id: 'select', when: () => items.length >= 4 && S.time > 11 * 60, t: '💡 Bir eşyaya <b>dokunursan</b> döndürebilir, taşıyabilir ya da satabilirsin.' },
+  { id: 'expand', when: () => rentableUnit() >= 0, t: '🔑 Yandaki dükkanı kiralayabilirsin! Üstündeki <b>Kiralık</b> tabelasına dokun.', world: () => unitCenter(rentableUnit()).setY(1.6) },
   { id: 'night', when: () => S.phase === 'closing', t: '🌙 Dükkan kapandı. Gün sonu raporunda kazancını ve yarının havasını göreceksin.' },
   { id: 'lv2', when: () => level() >= 2, t: '👥 <b>Ekip</b> açıldı! Buradan barista ya da masaları toplayan komi işe al.', el: '#tabbar [data-sheet=staff]' },
   { id: 'lv3', when: () => level() >= 3, t: '👋 <b>Mahalle</b> açıldı: müdavimlerini ve yorumları buradan takip et.', el: '#tabbar [data-sheet=hood]' },

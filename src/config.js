@@ -268,8 +268,8 @@ export const QUESTS = [
 // unlocks: 'tab:x' alt sekme, 'seg:sayfa:bölüm', 'item:tür', ya da özellik adı
 export const LEVELS = [
   { xp: 0, title: 'Mahalle kahvecisi', unlocks: [] },
-  { xp: 35, title: 'Sevilen kahveci', unlocks: ['tab:staff', 'seg:shop:gelistir', 'item:sofa', 'item:lamp', 'item:shelf'] },
-  { xp: 110, title: 'Mahallenin kahvecisi', unlocks: ['tab:hood', 'seg:more:cadde', 'item:vitrin', 'item:pikap', 'events', 'rush'] },
+  { xp: 35, title: 'Sevilen kahveci', unlocks: ['tab:staff', 'seg:shop:gelistir', 'item:sofa', 'item:lamp', 'item:shelf', 'expand'] },
+  { xp: 110, title: 'Mahallenin kahvecisi', unlocks: ['tab:hood', 'item:vitrin', 'item:pikap', 'events', 'rush'] },
   { xp: 240, title: 'Caddenin yıldızı', unlocks: ['seg:hood:istek', 'seg:hood:etkinlik', 'seg:more:dekor', 'item:tree', 'vip'] },
   { xp: 420, title: 'Kahve ustası', unlocks: ['seg:hood:rakip', 'rival', 'item:roaster', 'terrace', 'item:umbrella', 'seg:shop:atolye'] },
   { xp: 680, title: 'Üçüncü dalga öncüsü', unlocks: ['sig'] },
@@ -278,7 +278,7 @@ export const LEVELS = [
 ];
 export const UNLOCK_NAMES = {
   'tab:staff': '👥 Ekip (personel işe alma)', 'tab:hood': '👋 Mahalle (müdavimler, yorumlar)', 'seg:shop:gelistir': '⬆️ Geliştirmeler',
-  'seg:more:cadde': '🏠 Yan dükkanları kiralama', 'seg:hood:istek': '📬 Mahalle istekleri', 'seg:hood:etkinlik': '🎉 Etkinlik düzenleme',
+  expand: '🔑 Yan dükkanı kiralayıp büyüme', 'seg:hood:istek': '📬 Mahalle istekleri', 'seg:hood:etkinlik': '🎉 Etkinlik düzenleme',
   'seg:more:dekor': '🎨 Dekorasyon', 'seg:hood:rakip': '🏪 Rakip kahveci', 'seg:shop:atolye': '🧪 Tarif atölyesi', events: '🎲 Rastgele olaylar',
   rush: '🏃 Yoğun saat akınları', vip: '⭐ VIP siparişleri', rival: '🏪 Rakip kahveci', terrace: '⛱️ Teras', sig: '✨ İmza tarifler', branches: '🏙️ Yeni şubeler',
 };

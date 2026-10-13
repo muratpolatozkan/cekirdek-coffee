@@ -20,7 +20,7 @@ export const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 300);
 export let camTarget = V(UW * 1.5, UD / 2 + 1);
 export function setCamTarget(t) {
   t.x = clamp(t.x, -4, GW + 4); t.z = clamp(t.z, -1, UD + 8); t.y = 0;
-  camera.position.copy(t).add(CAM_OFFSET); camera.lookAt(t); camTarget = t;
+  camera.position.copy(t).add(CAM_OFFSET); camera.lookAt(t); camera.updateMatrixWorld(); camTarget = t;
 }
 export const focusShop = () => { setCamTarget(V(UW * 1.5, UD / 2 + 1)); requestRender(); };
 setCamTarget(camTarget.clone());
@@ -76,4 +76,4 @@ export function panBy(dx, dy) {
   if (ray.intersectPlane(groundPlane, hit)) setCamTarget(hit);
   requestRender();
 }
-export function setZoom(z) { camera.zoom = clamp(z, 0.5, 3); camera.updateProjectionMatrix(); requestRender(); }
+export function setZoom(z) { camera.zoom = clamp(z, 0.5, 3); camera.updateProjectionMatrix(); camera.updateMatrixWorld(); requestRender(); }

@@ -53,7 +53,7 @@ export function refreshUI() {
   badge('staff', isUnlocked('tab:staff') && (baristas < bars().length || b.staff.some(s => s.fatigue > 85 || (!s.owner && s.morale < 25))));
   badge('shop', lowBeans || lowMilk);
   badge('hood', isUnlocked('seg:hood:istek') ? b.quests.length : 0);
-  const rentable = isUnlocked('seg:more:cadde') && [ownMinU - 1, ownMaxU + 1].some(u => b.units[u] === 'rent' && S.money >= unitDeposit(u));
+  const rentable = isUnlocked('expand') && [ownMinU - 1, ownMaxU + 1].some(u => b.units[u] === 'rent' && S.money >= unitDeposit(u));
   badge('more', rentable);
   // şu anki hedef: önce bitmemiş günlük hedef, yoksa sıradaki büyük hedef
   const dg = S.daily?.goals.find(g => !g.done), big = GOALS.find(g => !S.goalsDone.includes(g.id)), gc = $('goalChip');
