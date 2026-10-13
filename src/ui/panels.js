@@ -63,7 +63,7 @@ const R = {
     if (sg === 'arac') return top + `<div class="grid">
       <button class="tile tool" data-act="tool" data-arg="move"><span class="e">✋</span><span class="n">Taşı</span><span class="p">ücretsiz</span></button>
       <button class="tile tool" data-act="tool" data-arg="sell"><span class="e">💸</span><span class="n">Sat</span><span class="p">%50 iade</span></button></div>
-      <p class="note" style="margin-top:10px">Taşı: eşyaya dokun, sonra yeni yerine koy. Sat: eşyaya dokun, sonra onayla.</p>`;
+      <p class="note" style="margin-top:10px">💡 Daha kolayı: haritada bir eşyaya <b>dokun</b>, altta ↻ Döndür · ✋ Taşı · 💸 Sat butonları çıkar.</p>`;
     const [types, tip] = BUILD_CATS[sg], se = season().id;
     return top + `<div class="grid">${types.filter(t => !CATALOG[t].season || CATALOG[t].season === se).map(t => {
       const d = CATALOG[t], lvlLock = !isUnlocked('item:' + t), locked = lvlLock || (d.terraceOnly && !B().terrace);

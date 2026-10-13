@@ -61,6 +61,9 @@ $('eventChip').onclick = () => toast($('eventChip').title, 3500);
 $('clock').onclick = () => toast($('clock').title, 2500);
 $('stock').onclick = () => openSheet('shop', 'stok');
 $('levelPill').onclick = () => openSheet('more', 'hedef');
+$('goalChip').onclick = () => openSheet('more', 'hedef');
+$('money').onclick = () => toast('💰 Paran. Eşya, personel ve stok alırsın. Kira ve maaşlar gün sonunda ödenir.', 4000);
+$('rating').onclick = () => toast('⭐ Puanın: müşteri yorumlarının ortalaması. Yükseldikçe caddeden daha çok kişi içeri girer.', 4000);
 initInput({ setSpeed, getSpeed: () => speed });
 
 // ---- yerleşim ve açılış pencereleri ----
@@ -106,7 +109,7 @@ renderer.setAnimationLoop(() => {
   updateStreet(dt); updateUnits(dt); updatePuffs(dt); updateWeather(raw); updateArt();
   setDayLight(S.time / 60);
   updateTags();
-  if ((uiT += raw) > 0.3) { uiT = 0; refreshUI(); if (sheet) renderPanel(); updateTutorial({ speed: () => speed }); checkLevelUp(); }
+  if ((uiT += raw) > 0.3) { uiT = 0; refreshUI(); if (sheet) renderPanel(); updateTutorial({ speed: () => speed, setSpeed }); checkLevelUp(); }
   if ((saveT += raw) > 5) { saveT = 0; save(); }
   // zaman akmıyorsa ve bir değişiklik yoksa çizme (duraklatılmış oyun pil yemesin)
   const wanted = takeRenderRequest();

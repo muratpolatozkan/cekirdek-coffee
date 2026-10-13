@@ -7,7 +7,7 @@ import { hasItem, atmosphere, bars, ownMinU, ownMaxU } from '../sim/grid.js';
 import { insideCount } from '../sim/people.js';
 import { GOALS } from '../sim/quests.js';
 import { rushInfo } from '../sim/events.js';
-import { levelProgress, isUnlocked, unlockLevel } from '../sim/progress.js';
+import { levelProgress, isUnlocked, unlockLevel, dailyProgress } from '../sim/progress.js';
 
 const SHORT = new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 });
 function badge(sheet, val) {
@@ -55,6 +55,12 @@ export function refreshUI() {
   badge('hood', isUnlocked('seg:hood:istek') ? b.quests.length : 0);
   const rentable = isUnlocked('seg:more:cadde') && [ownMinU - 1, ownMaxU + 1].some(u => b.units[u] === 'rent' && S.money >= unitDeposit(u));
   badge('more', rentable);
+  // şu anki hedef: önce bitmemiş günlük hedef, yoksa sıradaki büyük hedef
+  const dg = S.daily?.goals.find(g => !g.done), big = GOALS.find(g => !S.goalsDone.includes(g.id)), gc = $('goalChip');
+  if (dg) { const v = dailyProgress(dg); gc.innerHTML = `🎯 ${dg.text} <b>${v}/${dg.target}</b><i style="width:${Math.round(v / dg.target * 100)}%"></i>`; }
+  else if (big) gc.innerHTML = `🏆 ${big.text} <b>+${fmt(big.reward)}</b>`;
+  gc.style.display = dg || big ? '' : 'none';
+  document.documentElement.style.setProperty('--top-h', $('topbar').offsetHeight + 'px');
   // geniş ekran takip kutusu
   const T = b.today, next = GOALS.filter(g => !S.goalsDone.includes(g.id)).slice(0, 3);
   $('tracker').innerHTML = `<b>Bugün</b>

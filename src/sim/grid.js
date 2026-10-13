@@ -99,7 +99,6 @@ export function markDirty(it, s) {
   s.dirty = true;
   s.cupMesh = cyl(0.03, 0.025, 0.06, MAT.white, s.cup.x, CATALOG[it.type].cupY, s.cup.z, 10);
   scene.add(s.cupMesh);
-  if (!S.tipsShown.dirty) { S.tipsShown.dirty = true; toast('🧽 Masalar kirlendi! Kirli masaya tıklayarak topla ya da Personel’den komi işe al.', 5000); }
 }
 export function cleanItem(it) {
   let any = false;
