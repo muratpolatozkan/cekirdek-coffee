@@ -4,7 +4,7 @@ import { S, B, meta, CHALLENGE } from '../state.js';
 import { canFranchise } from '../sim/prestige.js';
 import { RULES } from '../sim/prestige.js';
 import { $, fmt, hhmm } from '../utils.js';
-import { rating, beanStock, season, weatherNow, unitDeposit } from '../sim/economy.js';
+import { rating, beanStock, season, weatherNow, unitDeposit, onMenu } from '../sim/economy.js';
 import { hasItem, atmosphere, bars, ownMinU, ownMaxU } from '../sim/grid.js';
 import { insideCount } from '../sim/people.js';
 import { GOALS } from '../sim/quests.js';
@@ -47,7 +47,7 @@ export function refreshUI() {
     const btn = document.querySelector(`#tabbar [data-sheet="${t}"]`), locked = !isUnlocked('tab:' + t);
     btn.classList.toggle('locked', locked); btn.dataset.lock = locked ? unlockLevel('tab:' + t) : '';
   }
-  const bs = beanStock(), milkOn = Object.keys(DRINKS).some(k => S.menu[k].on && DRINKS[k].milk);
+  const bs = beanStock(), milkOn = Object.keys(DRINKS).some(k => onMenu(k) && DRINKS[k].milk);
   const lowBeans = bs < 25, lowMilk = milkOn && b.milk < 10;
   $('stock').innerHTML = `🫘<span class="${lowBeans ? 'low' : ''}">${bs}</span>${milkOn ? ` 🥛<span class="${lowMilk ? 'low' : ''}">${b.milk}</span>` : ''}${hasItem('vitrin') ? ` 🥐${b.croissant}` : ''}`;
   // rozetler: dikkat isteyen şeyler

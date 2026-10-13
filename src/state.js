@@ -47,6 +47,7 @@ function branchDefaults(hood) {
     regulars: [], todayRegulars: [], quests: [], questTimer: 2,
     rival: { active: false, closed: false, health: 100, rating: 3.8, promo: 0, share: null },
     today: newToday(), histNet: [],
+    priceAdj: 0, off: {},   // şubeye özel fiyat yüzdesi ve bu şubede kapalı içecekler (menü ortak)
   };
 }
 const ownerStaff = () => ({ id: 1, name: 'Sen', role: 'barista', speed: 1 + .25 * perk('usta'), charm: 1 + .2 * perk('usta'), wage: 0, lvl: 1, owner: true, fatigue: 0, morale: 80, trait: null });

@@ -9,7 +9,7 @@ import { refreshUI } from './hud.js';
 import { hideModal, getLastPhoto, showIntro, showExport } from './modal.js';
 import { takePhoto } from './photo.js';
 import { setMusic } from '../audio.js';
-import { rating, fairPrice, cupCost, beanPrice, machineCost, adsCost, trainCost, spend, unitRent, unitDeposit, rentOf, wagesOf, fairWage, netWorth, season, milkPackCost } from '../sim/economy.js';
+import { rating, fairPrice, cupCost, beanPrice, machineCost, adsCost, trainCost, spend, unitRent, unitDeposit, rentOf, wagesOf, fairWage, netWorth, season, milkPackCost, onMenu, branchPrice } from '../sim/economy.js';
 import { hasItem, atmosphere, atmPerUnit, ownMinU, ownMaxU, recomputeBounds, refreshVitrin, bars, ownedCountOf, allSeats } from '../sim/grid.js';
 import { assignBaristas, syncWorkers } from '../sim/staff.js';
 import { startDay } from '../sim/day.js';
@@ -31,6 +31,14 @@ import { markSeen } from '../changelog.js';
 import { confetti } from './overlay.js';
 import { item, btn, buy, meter, stats } from './kit.js';
 
+// şube fiyat ayarı için mahalle ipuçları
+const pct = v => v ? `${v > 0 ? '+' : '−'}%${Math.abs(v)}` : '%0';
+const HOOD_PRICE_TIP = {
+  cinar: 'Karışık müşteri: menüyle aynı fiyat iyi gider.',
+  kampus: 'Öğrenciler fiyata çok duyarlı: indirim yaparsan daha çok kişi gelir.',
+  moda: 'Turistler ve kahve tutkunları pahalıya razı: fiyatı biraz artırabilirsin.',
+  plaza: 'Ofis çalışanları fiyata pek bakmaz, hız ister: fiyatı artırabilirsin.',
+};
 const SHEETS = {
   build: { title: '🛠️ İnşa', segs: [['oturma', '🪑 Oturma'], ['ekipman', '☕ Ekipman'], ['dekor', '🪴 Dekor'], ['arac', '✋ Taşı / Sat']] },
   staff: { title: '👥 Ekip', segs: [['ekip', 'Ekibim'], ['aday', 'Adaylar']] },
@@ -103,14 +111,20 @@ const R = {
     const b = B();
     if (sg === 'menu') {
       let h = `<p class="note">Adil fiyatın üstüne çıkarsan müşteri memnuniyetsizleşir, bazıları vazgeçer. Altında kalırsan daha çok kişi uğrar.</p>`;
+      const multi = S.branches.length > 1, HB = HOODS[b.hood];
+      if (multi) h += item({ col: true, ic: HB.icon, t: `${HB.name} şubesinde fiyatlar ${b.priceAdj ? `<b class="${b.priceAdj > 0 ? 'bad' : 'good'}">${pct(b.priceAdj)}</b>` : 'menüyle aynı'}`,
+        s: `Menü bütün şubelerde ortak; bu ayar sadece bu şubenin fiyatlarını değiştirir. ${HOOD_PRICE_TIP[b.hood] || ''}`,
+        ac: stepper('branchAdj', '-5', '5', pct(b.priceAdj)) });
       const drink = (id, d) => {
         const m = S.menu[id];
+        if (m.on && multi && b.off[id]) return item({ dim: true, ic: d.icon, t: d.name, s: `Bu şubede kapalı · diğer şubelerde ${fmt(m.price)}`, ac: btn('branchOff', id, '📍 Burada aç') });
         if (!m.on) return item({ dim: true, ic: d.icon, t: d.name, s: `${d.desc ? d.desc + ' · ' : ''}${d.base} ₺ · ${d.beans ? d.beans + ' doz' : 'çekirdeksiz'}${d.milk ? ' + süt' : ''}`, ac: buy('unlock', id, `Ekle ${fmt(d.cost)}`, d.cost) });
-        const fair = fairPrice(id), r = m.price / fair;
+        const fair = fairPrice(id), bp = branchPrice(id), r = bp / fair;
         const likes = d.likes ? Object.entries(d.likes).sort((a, c) => c[1] - a[1]).slice(0, 2).map(([t]) => TYPES[t].icon).join('') : '';
         return item({ col: !!d.sig, ic: d.icon, t: `${d.name}${d.season ? ` <span class="tag gray">${d.season}</span>` : ''}`,
-          s: `Maliyet ~${fmt(cupCost(id))} · Adil ~<b class="${r > 1.1 ? 'bad' : r < .95 ? 'good' : ''}">${fmt(fair)}</b>${likes ? ` · Sevenler ${likes}` : ''}`,
-          extra: d.sig ? segctl('sweet', SWEET.map((sw, k) => [`${id}:${k}`, `${sw} tatlı`]), `${id}:${m.sweet}`) : '',
+          s: `${bp !== m.price ? `Burada <b>${fmt(bp)}</b> · ` : ''}Maliyet ~${fmt(cupCost(id))} · Adil ~<b class="${r > 1.1 ? 'bad' : r < .95 ? 'good' : ''}">${fmt(fair)}</b>${likes ? ` · Sevenler ${likes}` : ''}`,
+          extra: (d.sig ? segctl('sweet', SWEET.map((sw, k) => [`${id}:${k}`, `${sw} tatlı`]), `${id}:${m.sweet}`) : '')
+            + (multi ? `<button class="linkbtn" data-act="branchOff" data-arg="${id}">📍 Bu şubede kapat</button>` : ''),
           ac: stepper('price', `${id}:-5`, `${id}:5`, m.price + ' ₺') });
       };
       h += `<div class="sec">Klasikler</div>`;
@@ -170,7 +184,7 @@ const R = {
       let h = `<p class="note">Her gün belli saatte gelirler. Mutlu ettikçe sadakatleri artar; 80’de arkadaşlarını getirirler, 90’da sürpriz yaparlar. Kızarlarsa giderler.</p>`;
       for (const r of b.regulars) h += item({ dim: r.status === 'lost', ic: r.emoji,
         t: `${esc(r.name)}${r.status === 'lost' ? ' <span class="tag red">gelmiyor</span>' : r.loyalty >= 80 ? ' <span class="tag">sadık</span>' : ''}`,
-        s: `${esc(r.story)}<br>☕ ${DRINKS[r.fav].name}${S.menu[r.fav].on ? '' : ' <span class="bad">(menüde yok!)</span>'} · 🕐 ${hhm(r.hour)} · ${r.visits} ziyaret${r.lastLine ? `<br>💬 <i>“${esc(r.lastLine)}”</i>` : ''}${r.quest ? `<br>📖 ${r.quest.done ? '<span class="good">İsteği tamamlandı</span>' : `${esc(r.quest.text)}${regQuestReady(r) ? ' <span class="good">✓ hazır, bir sonraki gelişinde teşekkür edecek</span>' : ''}`}` : ''}`,
+        s: `${esc(r.story)}<br>☕ ${DRINKS[r.fav].name}${onMenu(r.fav) ? '' : ' <span class="bad">(menüde yok!)</span>'} · 🕐 ${hhm(r.hour)} · ${r.visits} ziyaret${r.lastLine ? `<br>💬 <i>“${esc(r.lastLine)}”</i>` : ''}${r.quest ? `<br>📖 ${r.quest.done ? '<span class="good">İsteği tamamlandı</span>' : `${esc(r.quest.text)}${regQuestReady(r) ? ' <span class="good">✓ hazır, bir sonraki gelişinde teşekkür edecek</span>' : ''}`}` : ''}`,
         extra: `<div class="mlabel"><span>Sadakat</span><span>${Math.round(r.loyalty)}</span></div>${meter(r.loyalty, r.loyalty < 30 ? 'bad' : r.loyalty < 55 ? 'warn' : '')}` });
       return h;
     }
@@ -389,6 +403,13 @@ const ACT = {
   },
   raise(id) { const s = staffById(id); if (!s) return; s.wage = Math.round(s.wage * 1.1 / 10) * 10; s.morale = clamp(s.morale + 15, 0, 100); toast(`💰 ${s.name} zammı duydu, morali yükseldi!`); },
   unlock(id) { if (!spend(DRINKS[id].cost)) return; S.menu[id].on = true; refreshMenuBoard(); toast(`${DRINKS[id].icon} ${DRINKS[id].name} menüye eklendi!`); },
+  branchAdj(d) { const b = B(); b.priceAdj = clamp((b.priceAdj || 0) + +d, -30, 50); refreshMenuBoard(); },
+  branchOff(id) {
+    const b = B();
+    if (!b.off[id] && Object.keys(DRINKS).filter(k => onMenu(k)).length <= 1) return toast('Menüde en az bir içecek kalmalı.');
+    if (b.off[id]) delete b.off[id]; else b.off[id] = true;
+    refreshMenuBoard();
+  },
   price(arg) { const [id, d] = arg.split(':'); S.menu[id].price = clamp(S.menu[id].price + +d, 10, 500); refreshMenuBoard(); },
   sweet(arg) { const [id, k] = arg.split(':'); S.menu[id].sweet = +k; },
   foodprice(d) { S.foodPrice = clamp(S.foodPrice + +d, 30, 300); },

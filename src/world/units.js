@@ -9,6 +9,7 @@ import { pick, rand } from '../utils.js';
 import { ownX0, ownX1, ownedCount } from '../sim/grid.js';
 import { bake, disposeBaked, Q } from '../engine/perf.js';
 import { requestRender } from '../engine/scene.js';
+import { onMenu, branchPrice } from '../sim/economy.js';
 
 let group = new THREE.Group(); scene.add(group);
 export const unitLights = [];
@@ -21,7 +22,7 @@ let menuBoard = null;
 export const wallSlots = u => u === 1 ? [4.45] : [1.0, 2.5, 4.0];
 
 function menuTexture() {
-  const on = Object.entries(DRINKS).filter(([id]) => S.menu[id].on);
+  const on = Object.entries(DRINKS).filter(([id]) => onMenu(id));
   return canvasTex(512, 300, (g) => {
     g.fillStyle = '#1e1e1e'; g.fillRect(0, 0, 512, 300);
     g.fillStyle = '#f2ead8'; g.font = '700 30px system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('MENÜ', 256, 38);
@@ -29,7 +30,7 @@ function menuTexture() {
     on.slice(0, 12).forEach(([id, d], k) => {
       const col = k % 2, row = Math.floor(k / 2), x = 22 + col * 250, y = 78 + row * 37;
       g.textAlign = 'left'; g.fillStyle = d.sig ? '#ffd28a' : '#f2ead8'; g.fillText(d.name, x, y);
-      g.textAlign = 'right'; g.fillStyle = '#d6b480'; g.fillText(S.menu[id].price + '₺', x + 222, y);
+      g.textAlign = 'right'; g.fillStyle = '#d6b480'; g.fillText(branchPrice(id) + '₺', x + 222, y);
     });
   });
 }

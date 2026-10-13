@@ -25,7 +25,10 @@ export function peventNow(h = hourNow()) {
   const E = PEVENTS[p.id]; return h >= E.from && h < E.to ? E : null;
 }
 export const outageNow = (h = hourNow()) => eventIs('elektrik') && h >= 14 && h < 15.5;
-export const effPrice = id => Math.round(S.menu[id].price * (1 - (peventNow()?.discount || 0)));
+// menü ortak; her şubenin kendi fiyat yüzdesi ve kapattığı içecekler var
+export const onMenu = (id, b = B()) => !!S.menu[id]?.on && !b.off?.[id];
+export const branchPrice = (id, b = B()) => Math.round(S.menu[id].price * (1 + (b.priceAdj || 0) / 100));
+export const effPrice = id => Math.round(branchPrice(id) * (1 - (peventNow()?.discount || 0)));
 
 // caddeden geçen kişi sayısı çarpanı
 export function passMult(h) {
@@ -45,7 +48,7 @@ export function typeMult(h) {
   return m;
 }
 export function priceAppeal() {
-  const on = Object.keys(DRINKS).filter(id => S.menu[id].on);
+  const on = Object.keys(DRINKS).filter(id => onMenu(id));
   const a = on.reduce((s, id) => s + effPrice(id) / fairPrice(id), 0) / on.length;
   return clamp(2 - a, 0.3, 1.3);
 }

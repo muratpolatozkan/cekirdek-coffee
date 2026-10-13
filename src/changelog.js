@@ -1,6 +1,11 @@
 // Sürüm notları: oyuna güncellemeden sonra dönen oyuncuya "neler yeni" gösterilir.
 // Yeni sürümde en üste bir kayıt ekle ve v'yi bir artır.
 export const CHANGELOG = [
+  { v: 9, date: '13 Ekim 2026', title: 'Şubeye özel fiyat', items: [
+    '📍 Menü bütün şubelerde ortak kalıyor ama artık her şubenin kendi <b>fiyat ayarı</b> var (−%30 ile +%50 arası). Kampüs’te indirim yap, Moda’da ve Plaza’da fiyatı artır!',
+    '🚫 İstemediğin bir içeceği sadece o şubede kapatabilirsin.',
+    '💡 Dükkan → Menü’de her mahalle için hangi yönde ayar yapman gerektiğini anlatan bir ipucu var.',
+  ] },
   { v: 8, date: '13 Ekim 2026', title: 'Düzenle modu ve daha cömert franchise', items: [
     '✏️ Eşyaya dokunmak artık taşı/sat menüsünü açmıyor; bara dokunup hızlandırmak ve masa toplamak kesintisiz. Eşyaları düzenlemek için sağdaki <b>Düzenle</b> düğmesi var.',
     '🤝 <b>Franchise telifi:</b> bıraktığın markalar çalışmaya devam ediyor ve her gün sana telif ödüyor, sonsuza dek.',

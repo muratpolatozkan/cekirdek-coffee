@@ -9,7 +9,7 @@ import { overlay, floatText, placeEl } from '../ui/overlay.js';
 import { chime } from '../audio.js';
 import { tileCenter, frontTile, bars, isDoor, inBounds, ownedDoors, ownX0, ownX1, ownedCount, allSeats, approachTiles,
   markDirty, blockedGrid, bfs, pathTiles, atmPerUnit, hasItem } from './grid.js';
-import { rating, beanQ, beanStock, fairPrice, priceAppeal, passMult, typeMult, weatherNow, season, peventNow, staffCharm, shopOpen } from './economy.js';
+import { rating, beanQ, beanStock, fairPrice, priceAppeal, passMult, typeMult, weatherNow, season, peventNow, staffCharm, shopOpen, onMenu } from './economy.js';
 import { rivalFactor, rivalOpen, rivalDoorX } from './rival.js';
 import { onRegularServed, onRegularLeft, regularLine } from './regulars.js';
 import { disposeBaked } from '../engine/perf.js';
@@ -244,7 +244,7 @@ export const pickBar = () => bars().filter(b => b.barista && b.queue.length < MA
 export function drinkWeights(type) {
   const T = TYPES[type], w = {}, tmp = weatherNow().temp, se = season().id;
   for (const [id, d] of Object.entries(DRINKS)) {
-    let v = d.sig ? (S.menu[id].on ? (d.likes?.[type] || 0.3) * 0.8 : 0) : (T.drinks[id] || 0);
+    let v = d.sig ? (onMenu(id) ? (d.likes?.[type] || 0.3) * 0.8 : 0) : (T.drinks[id] || 0);
     if (!v) continue;
     if (tmp > 0) v *= d.temp === 'cold' ? 1 + tmp * 1.5 : 1 - tmp * .2;
     if (tmp < 0) v *= d.temp === 'cold' ? Math.max(.15, 1 + tmp * .5) : 1 - tmp * .25;
@@ -256,10 +256,10 @@ export function drinkWeights(type) {
 export function chooseDrink(c) {
   const w = drinkWeights(c.type);
   const want = c.regular && S.menu[c.regular.fav] && Math.random() < .85 ? c.regular.fav : weightedPick(w);
-  const avail = id => S.menu[id].on && B().milk >= DRINKS[id].milk;
+  const avail = id => onMenu(id) && B().milk >= DRINKS[id].milk;
   let id = want;
   if (!avail(id)) {
-    if (!S.menu[id].on) { c.missed = DRINKS[want].name; if (c.regular) c.missedFav = true; } else c.noMilk = true;
+    if (!onMenu(id)) { c.missed = DRINKS[want].name; if (c.regular) c.missedFav = true; } else c.noMilk = true;
     const opts = Object.keys(w).filter(avail);
     if (!opts.length) return null;
     id = weightedPick(Object.fromEntries(opts.map(o => [o, w[o]])));

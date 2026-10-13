@@ -7,7 +7,7 @@ import { puff } from '../engine/fx.js';
 import { people, insideCount, spawnPasser, passerRate } from './people.js';
 import { updateBars, workers, genCandidates, assignBaristas, syncWorkers } from './staff.js';
 import { items, hasItem, localToWorld, refreshVitrin } from './grid.js';
-import { beanStock, rating, rentOf, wagesOf, fairWage, milkPackCost } from './economy.js';
+import { beanStock, rating, rentOf, wagesOf, fairWage, milkPackCost, onMenu } from './economy.js';
 import { scheduleRegulars, updateRegulars } from './regulars.js';
 import { rollEvent, updateEvents, removeMusician, planDay } from './events.js';
 import { newDaily } from './progress.js';
@@ -44,7 +44,7 @@ export function simulate(dt) {
   if ((slowT += dt) > 1) {
     slowT = 0; autoSupply(); checkGoals();
     if (beanStock() < 25) warnOnce('beansLow', `⚠️ ${BEANS[B().activeBean].name} azalıyor (${beanStock()} doz). Stok panelinden al.`);
-    const milkOn = Object.keys(DRINKS).some(k => S.menu[k].on && DRINKS[k].milk);
+    const milkOn = Object.keys(DRINKS).some(k => onMenu(k) && DRINKS[k].milk);
     if (milkOn && B().milk < 8) warnOnce('milk', '⚠️ Süt azalıyor! Stok panelinden al.');
   }
 }
@@ -68,7 +68,7 @@ export function autoSupply() {
     const cost = Math.round(BEANS[id].cost * S.market[id] * BAG * (roast ? .55 : 1) * 1.1);
     if (S.money >= cost) { S.money -= cost; b.today.stock += cost; if (roast) st.g += BAG; else st.r += BAG; toast(`🚚 Otomatik tedarik: ${BAG} doz ${BEANS[id].name}${roast ? ' (çiğ)' : ''}`); }
   }
-  const milkOn = Object.keys(DRINKS).some(k => S.menu[k].on && DRINKS[k].milk);
+  const milkOn = Object.keys(DRINKS).some(k => onMenu(k) && DRINKS[k].milk);
   if (milkOn && b.milk < 15) {
     const cost = Math.round(milkPackCost() * 1.1);
     if (S.money >= cost) { S.money -= cost; b.today.stock += cost; b.milk += MILK_PACK; toast('🚚 Otomatik tedarik: süt'); }
