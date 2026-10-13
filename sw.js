@@ -1,7 +1,7 @@
 // Çevrimdışı oynanabilsin diye oyun dosyalarını önbelleğe alır.
 // Kendi dosyalarımız önce ağdan istenir (güncellemeler hemen gelsin), ağ yoksa önbellekten açılır.
 // CDN'deki sabit sürümlü Three.js önbellekten gelir.
-const CACHE = 'cekirdek-v8';
+const CACHE = 'cekirdek-v9';
 const SRC = ['main', 'changelog', 'config', 'utils', 'state', 'audio', 'quality',
   'engine/scene', 'engine/assets', 'engine/models', 'engine/fx', 'engine/perf',
   'world/street', 'world/units', 'world/weather',
@@ -11,7 +11,7 @@ const ASSETS = ['./', './index.html', './styles.css', './manifest.webmanifest', 
   'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
@@ -23,7 +23,8 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const sameOrigin = new URL(req.url).origin === self.location.origin;
   if (sameOrigin) {
-    e.respondWith(fetch(req)
+    // tarayıcının HTTP önbelleğini (GitHub Pages 10 dk tutuyor) atla: güncelleme hemen gelsin
+    e.respondWith(fetch(req.url, { cache: 'no-cache' })
       .then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); } return res; })
       .catch(() => caches.match(req).then(r => r || (req.mode === 'navigate' ? caches.match('./index.html') : undefined))));
     return;

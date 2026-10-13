@@ -1,5 +1,5 @@
 // Haritada kiralık dükkanların üstünde duran, dokununca kira kartını açan tabelalar
-import { NU } from '../config.js';
+import { NU, UD } from '../config.js';
 import { B } from '../state.js';
 import { fmt } from '../utils.js';
 import { overlay } from './overlay.js';
@@ -26,8 +26,8 @@ export function updatePlots() {
     if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
     el.classList.toggle('ok', ok);
     el.style.display = '';
-    // tabela hep kiralık dükkanın üstünde durur; dükkan ekrandan çıkınca o da çıkar
-    const p = toScreen(unitCenter(u).setY(1.25));
+    // tabela hep kiralık dükkanın vitrinindeki afişin üstünde durur; dükkan ekrandan çıkınca o da çıkar
+    const p = toScreen(unitCenter(u).setZ(UD).setY(1.3));
     el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
   }
 }

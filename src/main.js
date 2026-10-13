@@ -136,6 +136,14 @@ document.addEventListener('visibilitychange', () => {
 });
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
+  // yeni sürüm devreye girdi: oyun yeni açıldıysa hemen yenile, oynarken ise haber ver
+  const hadSW = !!navigator.serviceWorker.controller, t0 = performance.now();
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadSW) return;
+    save();
+    if (performance.now() - t0 < 20000 && !isModalOpen()) location.reload();
+    else toast('🆕 Yeni sürüm hazır! Oyunu kapatıp açınca gelecek.', 5000);
+  });
 }
 // test için: ?debug ile konsoldan erişim
 if (new URLSearchParams(location.search).has('debug')) {

@@ -3,7 +3,8 @@
 export const CHANGELOG = [
   { v: 6, date: '13 Ekim 2026', title: 'Yenilikler penceresi', items: [
     '📰 Oyun güncellenince burada neyin değiştiğini göreceksin. Eski notlar Daha → Ayarlar → Yenilikler’de.',
-    '🔑 Kiralık tabelası artık kayıp gitmiyor, hep kiralık dükkanın üstünde duruyor.',
+    '🔑 Kiralık tabelası artık kayıp gitmiyor, hep kiralık dükkanın vitrinindeki afişin üstünde duruyor.',
+    '⚡ Güncellemeler artık telefona hemen geliyor.',
   ] },
   { v: 5, date: '13 Ekim 2026', title: 'Dükkan genişletme yenilendi', items: [
     '🔑 Yandaki boş dükkanın üstünde <b>Kiralık</b> tabelası var. Dokun, kira kartında fiyatı ve şartları gör.',
