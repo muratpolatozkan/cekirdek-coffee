@@ -2,11 +2,11 @@
 import { DRINKS, BEANS, FOOD, BAG, MILK_PACK, MILK_PACK_COST, TYPES, TRAITS, HOODS, NEIGHBORS, PEVENTS, ROASTS, SWEET, WALL_COLORS, FLOORS, CATALOG,
   WALL_DECOR, BRAND_COLORS, BRAND_ICONS, WALL_COST, FLOOR_COST, TERRACE_COST, TERRACE_FEE, LOYALTY_CARD_COST, AUTO_SUPPLY_COST, NU,
   UNLOCK_NAMES, BASES, MILKS, FLAVORS, CUSTOM_COST, MAX_CUSTOM } from '../config.js';
-import { S, B, save, meta, wipeSave } from '../state.js';
+import { S, B, save, meta, wipeSave, exportSave, importSave, listBackups, restoreBackup } from '../state.js';
 import { $, fmt, starStr, esc, clamp } from '../utils.js';
 import { toast, note, haptic } from './toast.js';
 import { refreshUI } from './hud.js';
-import { hideModal, getLastPhoto, showIntro } from './modal.js';
+import { hideModal, getLastPhoto, showIntro, showExport } from './modal.js';
 import { takePhoto } from './photo.js';
 import { setMusic } from '../audio.js';
 import { rating, fairPrice, cupCost, beanPrice, machineCost, adsCost, trainCost, spend, unitRent, unitDeposit, rentOf, wagesOf, fairWage, netWorth, season } from '../sim/economy.js';
@@ -284,6 +284,13 @@ const R = {
       + item({ ic: '🎨', t: 'Latte art mini oyunu', s: 'Sütlü siparişlerde 🎨 butonu çıksın', ac: tgl('art', S.latteArt, ['Açık', 'Kapalı']) })
       + item({ ic: '❓', t: 'Nasıl oynanır', s: 'Başlangıç rehberini tekrar göster', ac: btn('help', null, 'Göster') })
       + item({ ic: '⌨️', t: 'Kısayollar', s: 'Bilgisayarda: R döndür · Esc bitir · S sat · M taşı · 1–9 eşya · P fotoğraf · Boşluk duraklat. Telefonda: tek parmakla kaydır, iki parmakla yakınlaştır.' })
+      + `<div class="sec">Kayıt ve yedekler</div>`
+      + item({ col: true, ic: '💾', t: 'Kaydını taşı', s: 'Kayıt bu tarayıcıda tutulur. iPhone’da ana ekrana eklenen uygulama ile Safari ayrı kayıt tutar; ilerlemeni birinden diğerine bu kodla taşıyabilirsin.',
+          ac: btn('exportSave', null, '📤 Dışa aktar') + btn('importSave', null, '📥 İçe aktar') })
+      + (listBackups().map((bk, k) => bk.broken
+          ? item({ ic: '🛟', t: 'Okunamayan eski kayıt', s: 'Açılırken sorun çıkan kayıt saklandı.', ac: btn('restore', 'broken', 'Geri yükle') })
+          : item({ ic: '🗂️', t: `Gün ${bk.day} yedeği`, s: `${new Date(bk.ts).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })} · ${fmt(bk.money)} · ${bk.branches} şube`, ac: btn('restore', k, 'Geri yükle') })).join('')
+        || '<p class="note">Her gün sonunda otomatik yedek alınır (son 3 gün).</p>')
       + item({ ic: '🔄', t: 'Oyunu sıfırla', s: 'Bütün ilerleme silinir (franchise yıldızları kalır).', ac: btn('reset', null, 'Sıfırla', 'danger') });
   },
 };
@@ -424,6 +431,21 @@ const ACT = {
     refreshMenuBoard(); ws.name = '';
     toast(`🧪 ${DRINKS[id].icon} ${DRINKS[id].name} menüye eklendi! Fiyatını Menü bölümünden ayarlayabilirsin.`, 4000);
   },
+  async exportSave() {
+    const code = exportSave();
+    try { await navigator.clipboard.writeText(code); toast('📋 Kayıt kodu kopyalandı. Diğer yerde İçe aktar’a yapıştır.', 4000); }
+    catch (e) { showExport(code); }
+  },
+  importSave() {
+    const t = prompt('Kayıt kodunu yapıştır (mevcut ilerlemenin yerine geçer):');
+    if (!t) return;
+    try { importSave(t); } catch (e) { toast('❌ Bu kod okunamadı.'); }
+  },
+  restore(arg) {
+    if (!confirm('Bu yedek yüklensin mi? Şu anki ilerlemenin yerine geçer.')) return;
+    try { restoreBackup(arg === 'broken' ? 'broken' : +arg); } catch (e) { toast('❌ Yedek açılamadı.'); }
+  },
+  reloadPage() { location.reload(); },
   sound() { S.sound = !S.sound; },
   music() { setMusic(!S.music); },
   art() { S.latteArt = !S.latteArt; },

@@ -1,7 +1,7 @@
 // Çevrimdışı oynanabilsin diye oyun dosyalarını önbelleğe alır.
 // Kendi dosyalarımız önce ağdan istenir (güncellemeler hemen gelsin), ağ yoksa önbellekten açılır.
 // CDN'deki sabit sürümlü Three.js önbellekten gelir.
-const CACHE = 'cekirdek-v4';
+const CACHE = 'cekirdek-v5';
 const SRC = ['main', 'config', 'utils', 'state', 'audio', 'quality',
   'engine/scene', 'engine/assets', 'engine/models', 'engine/fx', 'engine/perf',
   'world/street', 'world/units', 'world/weather',

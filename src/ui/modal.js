@@ -67,6 +67,22 @@ export function showNews() {
     <li>🏙️ <b>Yeni mahallelerde şubeler</b> (Kampüs, Moda, Levent), 📊 istatistikler ve ⭐ franchise.</li></ul>
     <div class="actions"><button class="btn primary block" data-act="closeNews">Hadi bakalım!</button></div>`);
 }
+export function showConflict() {
+  showModal(`<div class="center"><div class="bigemoji">📱</div><h2>Oyun başka bir yerde açıldı</h2>
+    <p>Çekirdek Coffee başka bir sekmede ya da pencerede açıldığı için bu pencere ilerlemeni kaydetmeyi durdurdu. Böylece iki pencere birbirinin kaydını silemez.</p></div>
+    <div class="actions"><button class="btn primary block" data-act="reloadPage">Burada devam et</button></div>`);
+}
+export function showLoadProblem() {
+  showModal(`<div class="center"><div class="bigemoji">🛟</div><h2>Kayıt okunamadı</h2>
+    <p>Eski kaydın açılırken bir sorun çıktı, bu yüzden yeni bir oyun başladı. Eski kayıt silinmedi, saklandı.</p></div>
+    <div class="actions"><button class="btn block" data-act="closeModal">Yeni oyunla devam</button><button class="btn primary block" data-act="restore" data-arg="broken">Eski kaydı dene</button></div>`);
+}
+export function showExport(code) {
+  showModal(`<h2>📤 Kaydını taşı</h2><p class="note">Bu kodu kopyala, oyunu açtığın diğer yerde (ör. ana ekrandaki uygulamada) ⚙️ Ayarlar → İçe aktar’a yapıştır.</p>
+    <textarea readonly style="width:100%;height:120px;font-size:11px;border-radius:12px;border:1px solid var(--line);padding:8px;user-select:text;-webkit-user-select:text">${code}</textarea>
+    <div class="actions"><button class="btn primary block" data-act="closeModal">Tamam</button></div>`);
+  const ta = document.querySelector('#modalBox textarea'); ta?.focus(); ta?.select();
+}
 let lastPhoto = null;
 export const getLastPhoto = () => lastPhoto;
 export function showPhoto(url) {

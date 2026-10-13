@@ -1,6 +1,6 @@
 // Gün döngüsü: zaman, kapanış, gün sonu raporu, yeni gün, hava, borsa, tedarik
 import { CLOSE, DAY_START, MIN_PER_SEC, BEANS, BAG, MILK_PACK, MILK_PACK_COST, FOOD, DRINKS, HOODS, WEATHER, EVENTS, PEVENTS, PACE } from '../config.js';
-import { S, B, save, newToday, seasonOf } from '../state.js';
+import { S, B, save, newToday, seasonOf, backupNow } from '../state.js';
 import { rand, pick, weightedPick, avg, randn, clamp } from '../utils.js';
 import { toast, note } from '../ui/toast.js';
 import { puff } from '../engine/fx.js';
@@ -114,7 +114,7 @@ export function endDay() {
     others, quits, log: [...(S.dayLog || [])], weather: S.weather.today, tomorrow: S.weather.tomorrow, tomorrowSeason: seasonOf(S.day + 1).id,
     rivalShare: b.rival.active ? b.rival.share : null,
   };
-  S.phase = 'report'; save(); showReport();
+  S.phase = 'report'; save(); backupNow(); showReport();
 }
 
 const SEASON_TIPS = {

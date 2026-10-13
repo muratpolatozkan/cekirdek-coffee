@@ -96,26 +96,96 @@ function migrateV2(L) {
   return normalize(st);
 }
 
+// ---- kayıt koruması ----
+// Aynı anda iki pencere (iki sekme, uygulama + tarayıcı) birbirinin kaydını ezmesin diye kilit:
+// en son açılan pencere kilidi alır; kilidi kaybeden pencere artık kaydetmez ve kullanıcıya söyler.
+const LOCK_KEY = SAVE_KEY + '-lock', BACKUP_KEY = SAVE_KEY + '-backups', BROKEN_KEY = SAVE_KEY + '-broken';
+const SESSION = Math.random().toString(36).slice(2) + Date.now().toString(36);
+let conflict = false;
+const conflictHandlers = [];
+export const onSaveConflict = fn => conflictHandlers.push(fn);
+function claimLock() { try { localStorage.setItem(LOCK_KEY, SESSION); } catch (e) {} }
+function lostLock() {
+  if (conflict) return true;
+  let owner = null; try { owner = localStorage.getItem(LOCK_KEY); } catch (e) {}
+  if (owner && owner !== SESSION) { conflict = true; conflictHandlers.forEach(f => f()); return true; }
+  return false;
+}
+addEventListener('storage', e => { if (e.key === LOCK_KEY && e.newValue && e.newValue !== SESSION) lostLock(); });
+try { navigator.storage?.persist?.(); } catch (e) {}   // tarayıcı kaydı kendiliğinden silmesin
+
 // yeni oyunsa true döner
+export let loadProblem = false;
 export function loadState() {
-  let st = null;
+  let st = null, raw = null;
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    raw = localStorage.getItem(SAVE_KEY);
     if (raw) st = normalize(JSON.parse(raw));
     else { const old = localStorage.getItem(OLD_SAVE_KEY); if (old) st = migrateV2(JSON.parse(old)); }
-  } catch (e) { st = null; }
+  } catch (e) {
+    st = null;
+    // kayıt okunamadı: ham hali sakla ki kaybolmasın
+    if (raw) { loadProblem = true; try { if (!localStorage.getItem(BROKEN_KEY)) localStorage.setItem(BROKEN_KEY, raw); } catch (err) {} }
+  }
+  claimLock();
   if (st && st.branches.length) { Object.assign(S, st); return false; }
   Object.assign(S, newState());
   S.branches.push(newBranch('cinar', true));
   return true;
 }
+function writeSave(data) {
+  try { localStorage.setItem(SAVE_KEY, data); return true; }
+  catch (e) {
+    // yer kalmadıysa en eski yedeği silip tekrar dene
+    try { const b = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); if (b.length) { b.shift(); localStorage.setItem(BACKUP_KEY, JSON.stringify(b)); localStorage.setItem(SAVE_KEY, data); return true; } } catch (err) {}
+    return false;
+  }
+}
 export function save() {
-  if (resetting || !S.branches) return;
+  if (resetting || !S.branches || lostLock()) return;
   for (const h of saveHooks) h();
   S.lastSeen = Date.now();
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {}
+  writeSave(JSON.stringify(S));
+  claimLock();
 }
 export function wipeSave() {
   setResetting();
   try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(OLD_SAVE_KEY); } catch (e) {}
+}
+
+// ---- yedekler, dışa/içe aktarma ----
+export function backupNow() {
+  if (resetting || conflict) return;
+  try {
+    for (const h of saveHooks) h();
+    const list = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]').filter(x => x.day !== S.day);
+    list.push({ ts: Date.now(), day: S.day, money: Math.round(S.money), branches: S.branches.length, data: JSON.stringify(S) });
+    while (list.length > 3) list.shift();
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(list));
+  } catch (e) {}
+}
+export function listBackups() {
+  const out = [];
+  try { for (const b of JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]')) out.push({ ts: b.ts, day: b.day, money: b.money, branches: b.branches }); } catch (e) {}
+  try { if (localStorage.getItem(BROKEN_KEY)) out.push({ broken: true }); } catch (e) {}
+  return out;
+}
+function loadRaw(data) {
+  const L = JSON.parse(data);
+  if (!L || !Array.isArray(L.branches) || !L.branches.length) throw new Error('geçersiz kayıt');
+  normalize(L);   // okunabildiğinden emin ol
+  setResetting();
+  localStorage.setItem(SAVE_KEY, data);
+  location.reload();
+}
+export function restoreBackup(idx) {
+  if (idx === 'broken') return loadRaw(localStorage.getItem(BROKEN_KEY));
+  const list = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
+  if (list[idx]) loadRaw(list[idx].data);
+}
+export function exportSave() { for (const h of saveHooks) h(); return 'CEKIRDEK1:' + btoa(unescape(encodeURIComponent(JSON.stringify(S)))); }
+export function importSave(text) {
+  const t = (text || '').trim();
+  const json = t.startsWith('CEKIRDEK1:') ? decodeURIComponent(escape(atob(t.slice(10)))) : t;
+  loadRaw(json);
 }
