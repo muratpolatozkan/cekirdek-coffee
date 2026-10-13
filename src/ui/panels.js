@@ -24,7 +24,8 @@ import { regQuestReady } from '../sim/regulars.js';
 import { applyQuality } from '../quality.js';
 import { rentBlock, rentChecks, rentUnit, neighborProgress, unitInfo, unitCenter, isAdjacent } from '../sim/expand.js';
 import { setCamTarget, setZoom, camera } from '../engine/scene.js';
-import { showRentCard } from './modal.js';
+import { showRentCard, showChangelog } from './modal.js';
+import { markSeen } from '../changelog.js';
 import { confetti } from './overlay.js';
 
 const SHEETS = {
@@ -296,6 +297,7 @@ const R = {
       + item({ ic: '🎵', t: 'Lo-fi müzik', s: 'Arka planda sakin kahveci müziği', ac: tgl('music', S.music, ['Açık', 'Kapalı']) })
       + item({ ic: '🎨', t: 'Latte art mini oyunu', s: 'Sütlü siparişlerde 🎨 butonu çıksın', ac: tgl('art', S.latteArt, ['Açık', 'Kapalı']) })
       + item({ ic: '❓', t: 'Nasıl oynanır', s: 'Başlangıç rehberini tekrar göster', ac: btn('help', null, 'Göster') })
+      + item({ ic: '📰', t: 'Yenilikler', s: 'Son güncellemelerde neler değişti', ac: btn('changelog', null, 'Göster') })
       + item({ ic: '⌨️', t: 'Kısayollar', s: 'Bilgisayarda: R döndür · Esc bitir · S sat · M taşı · 1–9 eşya · P fotoğraf · Boşluk duraklat. Telefonda: tek parmakla kaydır, iki parmakla yakınlaştır.' })
       + `<div class="sec">Kayıt ve yedekler</div>`
       + item({ col: true, ic: '💾', t: 'Kaydını taşı', s: 'Kayıt bu tarayıcıda tutulur. iPhone’da ana ekrana eklenen uygulama ile Safari ayrı kayıt tutar; ilerlemeni birinden diğerine bu kodla taşıyabilirsin.',
@@ -475,7 +477,8 @@ const ACT = {
   reset(arg) { if (arg !== 'force' && !confirm('Bütün ilerleme silinip oyun baştan başlasın mı? (Franchise yıldızların kalır.)')) return; wipeSave(); location.reload(); },
   startDay() { startDay(); },
   closeIntro() { S.introSeen = true; S.news3 = true; hideModal(); save(); },
-  closeNews() { S.news3 = true; hideModal(); save(); },
+  closeNews() { S.news3 = true; markSeen(); hideModal(); save(); },
+  changelog() { showChangelog(true); },
   closeModal() { hideModal(); },
   async sharePhoto() {
     try {

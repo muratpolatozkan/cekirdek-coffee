@@ -26,12 +26,8 @@ export function updatePlots() {
     if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
     el.classList.toggle('ok', ok);
     el.style.display = '';
-    // dükkan ekran dışındaysa tabela kenarda durur ve yönü gösterir
-    const p = toScreen(unitCenter(u).setY(1.25)), m = 70;
-    const top = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--top-h')) || 110;
-    const x = Math.min(innerWidth - m, Math.max(m, p.x)), y = Math.min(innerHeight - 170, Math.max(top + 70, p.y));
-    const dir = p.x > innerWidth - m ? 'right' : p.x < m ? 'left' : '';
-    el.classList.toggle('edge', !!dir); el.dataset.dir = dir;
-    el.style.left = x + 'px'; el.style.top = y + 'px';
+    // tabela hep kiralık dükkanın üstünde durur; dükkan ekrandan çıkınca o da çıkar
+    const p = toScreen(unitCenter(u).setY(1.25));
+    el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
   }
 }

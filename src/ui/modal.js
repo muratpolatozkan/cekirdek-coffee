@@ -2,6 +2,7 @@
 import { HOODS, WEATHER, SEASONS } from '../config.js';
 import { S, B, meta } from '../state.js';
 import { $, fmt, starStr, esc } from '../utils.js';
+import { CHANGELOG, seenVersion } from '../changelog.js';
 import { rentBlock, rentChecks, unitDeposit, unitRent, isAdjacent } from '../sim/expand.js';
 
 export function showModal(html) { $('modalBox').innerHTML = html; $('modal').style.display = 'flex'; }
@@ -56,17 +57,14 @@ export function showLevelUp(l, title, unlocks) {
     ${unlocks.length ? `<p>Yeni açılanlar:</p><ul>${unlocks.map(u => `<li>${u}</li>`).join('')}</ul>` : '<p class="note">Tebrikler, ün kazanmaya devam!</p>'}
     <div class="actions"><button class="btn primary block" data-act="closeModal">Harika!</button></div>`);
 }
-export function showNews() {
-  showModal(`<h2>🎉 Büyük güncelleme!</h2>
-    <p>Dükkanın ve ilerlemen yerinde. Bunlar yeni:</p>
-    <ul><li>🌦️ <b>Hava durumu ve mevsimler:</b> yağmur, kar, sıcak günler; gün sonunda yarının tahmini.</li>
-    <li>🎲 <b>Rastgele olaylar:</b> influencer, sağlık denetimi, maç günü, elektrik kesintisi, festival. Bir de kahve borsası.</li>
-    <li>👋 <b>Müdavimler</b>, <b>mahalle istekleri</b> ve sokağın köşesine açılacak <b>rakip kahveci</b>.</li>
-    <li>🎨 <b>Latte art mini oyunu</b>, <b>imza tarifler</b> (Türk kahvesi, tahinli latte, salep…), kavurma profili.</li>
-    <li>😓 Personelin <b>yorgunluğu, morali ve özel yetenekleri</b>. Kendi <b>etkinliklerini</b> de düzenleyebilirsin.</li>
-    <li>⛱️ <b>Teras</b>, 🎨 <b>dekorasyon</b> (duvar rengi, zemin, tablolar, kendi tabelan), 📷 <b>fotoğraf modu</b>, 🎵 lo-fi müzik.</li>
-    <li>🏙️ <b>Yeni mahallelerde şubeler</b> (Kampüs, Moda, Levent), 📊 istatistikler ve ⭐ franchise.</li></ul>
-    <div class="actions"><button class="btn primary block" data-act="closeNews">Hadi bakalım!</button></div>`);
+// güncellemeden sonra (ya da Ayarlar'dan) sürüm notları
+export function showChangelog(all = false) {
+  const seen = seenVersion(), list = all ? CHANGELOG : CHANGELOG.filter(c => c.v > seen).slice(0, 3);
+  showModal(`<div class="center"><div class="bigemoji">🎉</div><h2>${all ? 'Yenilikler' : 'Oyun güncellendi!'}</h2>
+    ${all ? '' : '<p>Dükkanın ve ilerlemen yerinde. Bunlar yeni:</p>'}</div>
+    <div class="changelog">${list.map(c => `<div class="cl"><div class="cl-h"><b>${c.title}</b><small>${c.date}</small></div>
+      <ul>${c.items.map(i => `<li>${i}</li>`).join('')}</ul></div>`).join('')}</div>
+    <div class="actions"><button class="btn primary block" data-act="closeNews">${all ? 'Kapat' : 'Hadi bakalım!'}</button></div>`);
 }
 export function showConflict() {
   showModal(`<div class="center"><div class="bigemoji">📱</div><h2>Oyun başka bir yerde açıldı</h2>

@@ -22,7 +22,7 @@ import { applyQuality } from './quality.js';
 import { UNLOCK_NAMES, CATALOG } from './config.js';
 import { refreshUI } from './ui/hud.js';
 import { renderPanel, sheet, openSheet } from './ui/panels.js';
-import { showReport, showIntro, showNews, showOffline, showLevelUp, showConflict, showLoadProblem, isModalOpen } from './ui/modal.js';
+import { showReport, showIntro, showChangelog, showOffline, showLevelUp, showConflict, showLoadProblem, isModalOpen } from './ui/modal.js';
 import { initInput } from './ui/input.js';
 import { updateArt } from './ui/minigame.js';
 import { itemTag, placeEl, confetti } from './ui/overlay.js';
@@ -31,6 +31,7 @@ import { toast } from './ui/toast.js';
 import { updateTutorial } from './ui/tutorial.js';
 import { updatePlots } from './ui/plots.js';
 import { sparkle } from './audio.js';
+import { LATEST, seenVersion, markSeen } from './changelog.js';
 
 // ---- durum ve dünya ----
 const isNew = loadState();
@@ -76,9 +77,10 @@ const away = isNew ? null : offlineEarnings();
 onSaveConflict(() => showConflict());
 if (loadProblem) showLoadProblem();
 else if (S.phase === 'report') { showReport(); if (away) toast(`🌙 Sen yokken dükkanın +${away.amount.toLocaleString('tr-TR')} ₺ kazandı.`, 4500); }
-else if (!S.introSeen) showIntro();
-else if (!S.news3) showNews();
+else if (!S.introSeen) { showIntro(); markSeen(); }
+else if (seenVersion() < LATEST) showChangelog();
 else if (away) showOffline(away);
+if (isNew) markSeen();   // yeni oyuncuya eski sürüm notları gösterilmez
 
 // ---- ana döngü ----
 function updateTags() {

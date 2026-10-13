@@ -310,6 +310,9 @@ body.coach-on #toasts { top: calc(var(--top-h, 110px) + 150px); }
 .lot.rent { background: #fffdf9; border: 2px dashed #b9a88f; }
 .lot.rent.ready { border: 2px solid var(--gold); animation: lotglow 1s ease-in-out infinite alternate; }
 @keyframes lotglow { to { box-shadow: 0 0 0 5px rgba(224,161,0,.35); } }
-.plot.edge[data-dir=right]::after { content: ' ➡️'; }
-.plot.edge[data-dir=left]::before { content: '⬅️ '; }
-.plot.edge { display: flex; align-items: center; gap: 4px; }
+.changelog { display: flex; flex-direction: column; gap: 10px; max-height: 52vh; overflow-y: auto; margin: 6px 0 4px; }
+.cl { background: rgba(0,0,0,.035); border-radius: 12px; padding: 10px 12px; }
+.cl-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cl-h small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.cl ul { margin: 6px 0 0; padding-left: 4px; list-style: none; font-size: 13px; line-height: 1.45; }
+.cl li { margin: 4px 0; }
