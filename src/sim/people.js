@@ -1,6 +1,6 @@
 // İnsanlar: caddeden geçen yayalar, müşteriler, müdavimler ve özel ziyaretçiler
 import { UD, SIDEWALK_Z, FAR_Z, STREET_X0, STREET_X1, MIN_PER_SEC, MAX_QUEUE, MAX_INSIDE, DRINKS, TYPES, NAMES, TXT, BEANS, PACE, XP } from '../config.js';
-import { S, B } from '../state.js';
+import { S, B, ruleIs } from '../state.js';
 import { scene } from '../engine/scene.js';
 import { cyl, box, Mc, MAT } from '../engine/assets.js';
 import { makePerson, sitPose, standPose } from '../engine/models.js';
@@ -199,7 +199,7 @@ export class Person {
     if (this.state === 'toQueue' || this.state === 'queued') {
       this.wait += dt;
       if (this.state === 'queued') this.waitTotal += dt;
-      if (this.wait > T.patience * (this.regular ? 1.3 : 1)) {
+      if (this.wait > T.patience * (this.regular ? 1.3 : 1) * (ruleIs('turist') ? .75 : 1)) {
         B().today.angry++;
         if (this.regular) onRegularLeft(this, 'angry');
         this.leaveShop('😠', 'angry');
@@ -212,7 +212,7 @@ export class Person {
       const d = DRINKS[this.bar.drinkId];
       this.setBubble(`${this.vipCount ? `⭐ ${this.vipCount}× ` : ''}${d.icon} ${d.name}${this.art ? ' 🎨' : ''}<div class="bar"><i></i></div>`, this.vipCount ? 'vip' : '');
       if (this.progEl) this.progEl.style.width = Math.min(100, this.bar.prog / this.bar.need * 100) + '%';
-    } else if (this.state === 'queued' && this.wait > T.patience * .6) this.setBubble('⏰');
+    } else if (this.state === 'queued' && this.wait > T.patience * .6 * (ruleIs('turist') ? .75 : 1)) this.setBubble('⏰');
     else this.setBubble('');
   }
 }
@@ -290,6 +290,7 @@ export function evaluate(c, barista) {
   if (c.art) f.art = { perfect: .5, good: .25, bad: -.1 }[c.art] + (c.art === 'perfect' ? (c.artLevel || 0) * .1 : 0);
   if (c.special === 'vip') f.vip = c.waitTotal * MIN_PER_SEC < 25 ? .6 : -.4;
   const E = peventNow(); if (E && (E.types?.[c.type] || E.atm)) f.pevent = .2;
+  if (ruleIs('zor')) f.rule = -.4;
   c.sat = 3.5 + Object.values(f).reduce((a, b) => a + b, 0) + rand(-.35, .35);
 }
 export function addFactor(c, k, v) { c.f[k] = (c.f[k] || 0) + v; if (c.sat != null) c.sat += v; }

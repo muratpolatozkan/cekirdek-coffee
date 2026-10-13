@@ -8,10 +8,24 @@ export const saveHooks = [];               // kaydetmeden önce çalışır (ör
 let resetting = false;                     // sıfırlarken sayfa kapanışındaki otomatik kayıt eski oyunu geri yazmasın
 export const setResetting = () => { resetting = true; };
 
-// franchise yıldızları sıfırlamadan sonra da kalır
-export const meta = { stars: 0, runs: 0 };
+// günün meydan okuması: ?meydan ile açılır, herkes aynı koşullarla oynar, ana kayda dokunmaz
+export const CHALLENGE = new URLSearchParams(location.search).has('meydan');
+export const todayKey = (d = new Date()) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+if (CHALLENGE) {
+  let a = Math.imul(todayKey(), 2654435761) >>> 0;   // günün tohumu: aynı gün herkese aynı rastgelelik
+  Math.random = () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+
+// sıfırlamadan ve franchise'tan sonra da kalanlar: yıldızlar, yetenekler, başarımlar, koleksiyon, meydan okuma skorları
+export const meta = { stars: 0, earned: 0, runs: 0, hardRuns: 0, perks: {}, ach: {}, album: {}, ch: {}, chStreak: 0, chLast: 0, nextRule: null };
 try { Object.assign(meta, JSON.parse(localStorage.getItem(META_KEY) || '{}')); } catch (e) {}
+meta.album = { drinks: {}, types: {}, vips: {}, ...meta.album };
+meta.earned = Math.max(meta.earned || 0, meta.stars);
 export function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {} }
+// yıldızlarla alınan kalıcı yetenek seviyesi (meydan okumada herkes eşit: yetenek yok)
+export const perk = id => CHALLENGE ? 0 : (meta.perks[id] || 0);
+// bu sezonun kuralı (franchise'ta seçilir)
+export const ruleIs = id => S.rule === id;
 
 export const seasonOf = day => SEASONS[Math.floor((day - 1) / SEASON_DAYS) % SEASONS.length];
 
@@ -33,7 +47,7 @@ function branchDefaults(hood) {
     today: newToday(), histNet: [],
   };
 }
-const ownerStaff = () => ({ id: 1, name: 'Sen', role: 'barista', speed: 1, charm: 1, wage: 0, lvl: 1, owner: true, fatigue: 0, morale: 80, trait: null });
+const ownerStaff = () => ({ id: 1, name: 'Sen', role: 'barista', speed: 1 + .25 * perk('usta'), charm: 1 + .2 * perk('usta'), wage: 0, lvl: 1, owner: true, fatigue: 0, morale: 80, trait: null });
 export function newBranch(hood, withOwner) {
   const b = branchDefaults(hood);
   b.staff = withOwner ? [ownerStaff()]
@@ -42,8 +56,8 @@ export function newBranch(hood, withOwner) {
 }
 export function newState() {
   return {
-    v: 3, money: 2500 + meta.stars * 1000, day: 1, time: DAY_START, phase: 'open', served: 0,
-    ads: 0, autoSupply: false, loyaltyCard: false, geisha: false,
+    v: 3, money: 2500 + perk('sermaye') * 1500, day: 1, time: DAY_START, phase: 'open', served: 0,
+    ads: 0, autoSupply: perk('tedarik') > 0, rule: null, stat: {}, loyaltyCard: false, geisha: false,
     menu: Object.fromEntries(Object.entries(DRINKS).map(([id, d]) => [id, { on: !!d.start, price: d.base, sweet: 1 }])),
     foodPrice: FOOD.base,
     market: Object.fromEntries(Object.keys(BEANS).map(k => [k, 1])),
@@ -106,6 +120,7 @@ const conflictHandlers = [];
 export const onSaveConflict = fn => conflictHandlers.push(fn);
 function claimLock() { try { localStorage.setItem(LOCK_KEY, SESSION); } catch (e) {} }
 function lostLock() {
+  if (CHALLENGE) return false;
   if (conflict) return true;
   let owner = null; try { owner = localStorage.getItem(LOCK_KEY); } catch (e) {}
   if (owner && owner !== SESSION) { conflict = true; conflictHandlers.forEach(f => f()); return true; }
@@ -127,10 +142,15 @@ export function loadState() {
     // kayıt okunamadı: ham hali sakla ki kaybolmasın
     if (raw) { loadProblem = true; try { if (!localStorage.getItem(BROKEN_KEY)) localStorage.setItem(BROKEN_KEY, raw); } catch (err) {} }
   }
+  if (CHALLENGE) { Object.assign(S, newState()); S.branches.push(newBranch('cinar', true)); return true; }
   claimLock();
   if (st && st.branches.length) { Object.assign(S, st); return false; }
   Object.assign(S, newState());
-  S.branches.push(newBranch('cinar', true));
+  const b = newBranch('cinar', true);
+  if (perk('genis')) { const u = b.units.indexOf('rent'); if (u >= 0) b.units[u] = 'own'; }
+  S.branches.push(b);
+  // franchise'ta seçilen sezon kuralı
+  S.rule = meta.nextRule || null; meta.nextRule = null; saveMeta();
   return true;
 }
 function writeSave(data) {
@@ -142,7 +162,7 @@ function writeSave(data) {
   }
 }
 export function save() {
-  if (resetting || !S.branches || lostLock()) return;
+  if (CHALLENGE || resetting || !S.branches || lostLock()) return;
   for (const h of saveHooks) h();
   S.lastSeen = Date.now();
   writeSave(JSON.stringify(S));
@@ -150,12 +170,13 @@ export function save() {
 }
 export function wipeSave() {
   setResetting();
+  if (CHALLENGE) return;
   try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(OLD_SAVE_KEY); } catch (e) {}
 }
 
 // ---- yedekler, dışa/içe aktarma ----
 export function backupNow() {
-  if (resetting || conflict) return;
+  if (CHALLENGE || resetting || conflict) return;
   try {
     for (const h of saveHooks) h();
     const list = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]').filter(x => x.day !== S.day);

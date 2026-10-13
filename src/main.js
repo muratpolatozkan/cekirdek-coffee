@@ -1,6 +1,6 @@
 // Giriş noktası: durumu yükler, dünyayı kurar, arayüzü bağlar ve ana döngüyü başlatır
 import * as THREE from 'three';
-import { S, B, loadState, save, wipeSave, onSaveConflict, loadProblem } from './state.js';
+import { S, B, loadState, save, wipeSave, onSaveConflict, loadProblem, CHALLENGE } from './state.js';
 import { $ } from './utils.js';
 import { renderer, scene, camera, resizeRenderer, takeRenderRequest, requestRender } from './engine/scene.js';
 import { updatePuffs } from './engine/fx.js';
@@ -22,7 +22,7 @@ import { applyQuality } from './quality.js';
 import { UNLOCK_NAMES, CATALOG } from './config.js';
 import { refreshUI } from './ui/hud.js';
 import { renderPanel, sheet, openSheet } from './ui/panels.js';
-import { showReport, showIntro, showChangelog, showOffline, showLevelUp, showConflict, showLoadProblem, isModalOpen } from './ui/modal.js';
+import { showReport, showIntro, showChangelog, showChallengeIntro, showFranchise, showOffline, showLevelUp, showConflict, showLoadProblem, isModalOpen } from './ui/modal.js';
 import { initInput } from './ui/input.js';
 import { updateArt } from './ui/minigame.js';
 import { itemTag, placeEl, confetti } from './ui/overlay.js';
@@ -31,10 +31,14 @@ import { toast } from './ui/toast.js';
 import { updateTutorial } from './ui/tutorial.js';
 import { updatePlots } from './ui/plots.js';
 import { sparkle } from './audio.js';
+import { setupChallenge } from './sim/challenge.js';
+import { checkAch } from './sim/achievements.js';
+import { canFranchise } from './sim/prestige.js';
 import { LATEST, seenVersion, markSeen } from './changelog.js';
 
 // ---- durum ve dünya ----
 const isNew = loadState();
+if (CHALLENGE) setupChallenge();
 registerCustoms();
 Object.assign(Q, { battery: !!S.battery, peopleShadows: !S.battery, lampLights: !S.battery, fps: S.battery ? 30 : 60 });
 if (isNew) { S.weather.tomorrow = rollWeather(2); planDay(); }
@@ -63,7 +67,7 @@ $('eventChip').onclick = () => toast($('eventChip').title, 3500);
 $('clock').onclick = () => toast($('clock').title, 2500);
 $('stock').onclick = () => openSheet('shop', 'stok');
 $('levelPill').onclick = () => openSheet('more', 'hedef');
-$('goalChip').onclick = () => openSheet('more', 'hedef');
+$('goalChip').onclick = () => openSheet('more', CHALLENGE ? 'meydan' : 'hedef');
 $('money').onclick = () => toast('💰 Paran. Eşya, personel ve stok alırsın. Kira ve maaşlar gün sonunda ödenir.', 4000);
 $('rating').onclick = () => toast('⭐ Puanın: müşteri yorumlarının ortalaması. Yükseldikçe caddeden daha çok kişi içeri girer.', 4000);
 initInput({ setSpeed, getSpeed: () => speed });
@@ -73,14 +77,15 @@ function layout() { resizeRenderer(); }
 addEventListener('resize', layout); layout();
 setDayLight(S.time / 60);
 refreshUI();
-const away = isNew ? null : offlineEarnings();
+const away = isNew || CHALLENGE ? null : offlineEarnings();
 onSaveConflict(() => showConflict());
-if (loadProblem) showLoadProblem();
+if (CHALLENGE) showChallengeIntro();
+else if (loadProblem) showLoadProblem();
 else if (S.phase === 'report') { showReport(); if (away) toast(`🌙 Sen yokken dükkanın +${away.amount.toLocaleString('tr-TR')} ₺ kazandı.`, 4500); }
 else if (!S.introSeen) { showIntro(); markSeen(); }
 else if (seenVersion() < LATEST) showChangelog();
 else if (away) showOffline(away);
-if (isNew) markSeen();   // yeni oyuncuya eski sürüm notları gösterilmez
+if (isNew && !CHALLENGE) markSeen();   // yeni oyuncuya eski sürüm notları gösterilmez
 
 // ---- ana döngü ----
 function updateTags() {
@@ -99,6 +104,11 @@ function checkLevelUp() {
   S.levelSeen = l; save();
   showLevelUp(l, levelTitle(l), [...new Set(names)]); confetti(60); sparkle();
 }
+// franchise şartı ilk kez dolunca haber ver
+function checkFranchise() {
+  if (S.frOffer || isModalOpen() || S.phase === 'report' || !canFranchise()) return;
+  S.frOffer = true; save(); showFranchise(true);
+}
 
 let uiT = 0, saveT = 0, shadowT = 0, frameAcc = 0, idleT = 0;
 const clock = new THREE.Clock();
@@ -112,7 +122,7 @@ renderer.setAnimationLoop(() => {
   updateStreet(dt); updateUnits(dt); updatePuffs(dt); updateWeather(raw); updateArt();
   setDayLight(S.time / 60);
   updateTags(); updatePlots();
-  if ((uiT += raw) > 0.3) { uiT = 0; refreshUI(); if (sheet) renderPanel(); updateTutorial({ speed: () => speed, setSpeed }); checkLevelUp(); }
+  if ((uiT += raw) > 0.3) { uiT = 0; refreshUI(); if (sheet) renderPanel(); updateTutorial({ speed: () => speed, setSpeed }); checkLevelUp(); checkAch(); checkFranchise(); }
   if ((saveT += raw) > 5) { saveT = 0; save(); }
   // zaman akmıyorsa ve bir değişiklik yoksa seyrek çiz (saniyede 4 kare): pil yemesin ama
   // tarayıcı görüntüyü silerse (iOS'ta panel açılınca / arka plandan dönünce) ekran boş kalmasın
@@ -130,7 +140,7 @@ addEventListener('pagehide', save);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { save(); return; }
   // geri dönünce: sen yokken kazanç
-  const off = offlineEarnings();
+  const off = CHALLENGE ? null : offlineEarnings();
   if (off && !isModalOpen()) showOffline(off);
   requestRender(); renderer.shadowMap.needsUpdate = true;
 });

@@ -1,13 +1,13 @@
 // Gün döngüsü: zaman, kapanış, gün sonu raporu, yeni gün, hava, borsa, tedarik
 import { CLOSE, DAY_START, MIN_PER_SEC, BEANS, BAG, MILK_PACK, MILK_PACK_COST, FOOD, DRINKS, HOODS, WEATHER, EVENTS, PEVENTS, PACE } from '../config.js';
-import { S, B, save, newToday, seasonOf, backupNow } from '../state.js';
+import { S, B, save, newToday, seasonOf, backupNow, ruleIs, CHALLENGE } from '../state.js';
 import { rand, pick, weightedPick, avg, randn, clamp } from '../utils.js';
 import { toast, note } from '../ui/toast.js';
 import { puff } from '../engine/fx.js';
 import { people, insideCount, spawnPasser, passerRate } from './people.js';
 import { updateBars, workers, genCandidates, assignBaristas, syncWorkers } from './staff.js';
 import { items, hasItem, localToWorld, refreshVitrin } from './grid.js';
-import { beanStock, rating, rentOf, wagesOf, fairWage } from './economy.js';
+import { beanStock, rating, rentOf, wagesOf, fairWage, milkPackCost } from './economy.js';
 import { scheduleRegulars, updateRegulars } from './regulars.js';
 import { rollEvent, updateEvents, removeMusician, planDay } from './events.js';
 import { newDaily } from './progress.js';
@@ -16,12 +16,13 @@ import { checkGoals, questsEndOfDay, questsMorning } from './quests.js';
 import { passiveIncome } from './branches.js';
 import { buildUnits } from '../world/units.js';
 import { applyWeather } from '../world/weather.js';
-import { showReport, hideModal } from '../ui/modal.js';
+import { showReport, hideModal, showChallengeResult } from '../ui/modal.js';
+import { finishChallenge } from './challenge.js';
 import { closeAllArt } from '../ui/minigame.js';
 
 const warned = {};
 export function warnOnce(key, msg) { if (warned[key]) return; warned[key] = true; toast(msg, 4000); setTimeout(() => warned[key] = false, 30000); }
-export const rollWeather = day => weightedPick(seasonOf(day).weather);
+export const rollWeather = day => ruleIs('yagmur') && Math.random() < .45 ? (seasonOf(day).id === 'kis' ? 'kar' : 'yagmur') : weightedPick(seasonOf(day).weather);
 
 let passT = 0.5, slowT = 0;
 export function simulate(dt) {
@@ -68,7 +69,7 @@ export function autoSupply() {
   }
   const milkOn = Object.keys(DRINKS).some(k => S.menu[k].on && DRINKS[k].milk);
   if (milkOn && b.milk < 15) {
-    const cost = Math.round(MILK_PACK_COST * 1.1);
+    const cost = Math.round(milkPackCost() * 1.1);
     if (S.money >= cost) { S.money -= cost; b.today.stock += cost; b.milk += MILK_PACK; toast('🚚 Otomatik tedarik: süt'); }
   }
 }
@@ -114,7 +115,9 @@ export function endDay() {
     others, quits, log: [...(S.dayLog || [])], weather: S.weather.today, tomorrow: S.weather.tomorrow, tomorrowSeason: seasonOf(S.day + 1).id,
     rivalShare: b.rival.active ? b.rival.share : null,
   };
-  S.phase = 'report'; save(); backupNow(); showReport();
+  S.phase = 'report';
+  if (CHALLENGE) { showChallengeResult(finishChallenge()); return; }
+  save(); backupNow(); showReport();
 }
 
 const SEASON_TIPS = {

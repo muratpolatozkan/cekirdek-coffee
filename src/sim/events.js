@@ -11,6 +11,7 @@ import { makePerson } from '../engine/models.js';
 import { allSeats, tileCenter, ownX0, ownX1, itemAt, bars, frontTile } from './grid.js';
 import { spawnVisitor, addReview } from './people.js';
 import { shopOpen, outageNow } from './economy.js';
+import { statUp } from './achievements.js';
 
 // sabah planı: akın saatleri ve VIP ziyareti
 export function planDay() {
@@ -54,13 +55,14 @@ export function judgeInspection(p) {
     S.money -= fine; B().today.fines += fine;
     note(`🧾 Denetçi ${dirty} kirli yer buldu: ${fine.toLocaleString('tr-TR')} ₺ ceza!`); p.say('❌ Ceza', 2.5, 'warnb');
   } else {
-    S.money += 500; B().today.gifts += 500;
+    S.money += 500; B().today.gifts += 500; statUp('insp');
     addReview(5, 'Denetimden tam puanla geçti, tertemiz bir işletme.', 'Belediye', '🏛️');
     note('🧾 Denetimden tam puanla geçtin! Temiz işletme teşviki: +500 ₺'); p.say('✅ Tertemiz!', 2.5);
   }
 }
 export function onInfluencerReview(stars) {
   if (stars >= 4) {
+    statUp('infl');
     for (let k = 0; k < 4; k++) addReview(5, 'Influencer paylaşımını görüp geldim, gerçekten harika!', 'Takipçi', '📱');
     S.buzz = Math.max(S.buzz, 3);
     note('📸 Influencer bayıldı ve paylaştı! 4 harika yorum, 3 gün boyunca cadde dolu.', 5000);
@@ -108,7 +110,7 @@ function updateRush(h, dt) {
     r.done = true;
     if (count >= r.target) {
       const prize = 250 + level() * 100;
-      S.money += prize; addXP(XP.rush); confetti(40); coin();
+      S.money += prize; addXP(XP.rush); statUp('rush'); confetti(40); coin();
       note(`🏆 Akını başarıyla karşıladın! ${count}/${r.target} servis · +${fmt(prize)}`, 4500);
     } else note(`⌛ Akın bitti: ${count}/${r.target} servis. Bir dahakine daha çok bar ve barista!`, 4000);
     setTimeout(() => { if (S.rush === r) S.rush = null; }, 3000);

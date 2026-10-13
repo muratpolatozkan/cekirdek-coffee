@@ -3,6 +3,8 @@ import { HOODS, WEATHER, SEASONS } from '../config.js';
 import { S, B, meta } from '../state.js';
 import { $, fmt, starStr, esc } from '../utils.js';
 import { CHANGELOG, seenVersion } from '../changelog.js';
+import { challengeInfo, keyLabel } from '../sim/challenge.js';
+import { RULES, ruleChoices, starBreakdown, franchiseStars, canFranchise } from '../sim/prestige.js';
 import { rentBlock, rentChecks, unitDeposit, unitRent, isAdjacent } from '../sim/expand.js';
 
 export function showModal(html) { $('modalBox').innerHTML = html; $('modal').style.display = 'flex'; }
@@ -103,4 +105,46 @@ export function showPhoto(url) {
     <div class="actions">${canShare ? '<button class="btn block" data-act="sharePhoto">📤 Paylaş</button>' : ''}
     <a class="btn primary block" href="${url}" download="cekirdek-coffee-gun-${S.day}.jpg">⬇️ İndir</a>
     <button class="btn block" data-act="closeModal">Kapat</button></div>`);
+}
+
+// ---- günün meydan okuması ----
+export function showChallengeIntro() {
+  const i = challengeInfo(), best = meta.ch[i.key];
+  showModal(`<div class="center"><div class="bigemoji">🏆</div><h2>Günün Meydan Okuması</h2><p>${keyLabel(i.key)} · bugün herkes aynı koşullarla oynuyor</p></div>
+    <div class="forecast">
+      <div>${i.hood.icon} <b>${i.hood.name}</b> · ${i.hood.desc}</div>
+      <div>${i.rule.icon} <b>${i.rule.name}</b> · ${i.rule.desc}</div>
+      ${i.event ? `<div>${i.event.icon} <b>${i.event.name}</b> · ${i.event.desc}</div>` : ''}
+      <div>💰 <b>${fmt(S.money)}</b> ile başlıyorsun</div>
+    </div>
+    <p>Tek bir gün oyna. Gün sonunda <b>kâr + servis + memnuniyet</b> puanın hesaplanır. Skorunu arkadaşlarına gönder!</p>
+    ${best ? `<p class="note">Bugünkü rekorun: <b>${best.toLocaleString('tr-TR')}</b> puan. Tekrar oynayabilirsin, en iyisi sayılır.</p>` : ''}
+    <p class="note">Ana oyunun güvende, buradaki hiçbir şey ona dokunmaz.</p>
+    <div class="actions"><button class="btn block" data-act="chHome">Ana oyuna dön</button><button class="btn primary block" data-act="closeModal">Başla!</button></div>`);
+}
+let lastResult = null;
+export const getLastResult = () => lastResult;
+export function showChallengeResult(r) {
+  lastResult = r;
+  showModal(`<div class="center"><div class="bigemoji">🏆</div><h2>Gün bitti!</h2><p>Günün Meydan Okuması · ${keyLabel(r.key)}</p>
+    <div class="bigscore">${r.score.toLocaleString('tr-TR')}<small>puan</small></div>
+    ${r.record ? '<div class="tag gold">🎉 Bugünkü yeni rekorun!</div>' : `<p class="note">Bugünkü rekorun: <b>${r.best.toLocaleString('tr-TR')}</b></p>`}</div>
+    <table class="rep">${r.parts.map(([k, v]) => `<tr><td>${k}</td><td>${v.toLocaleString('tr-TR')}</td></tr>`).join('')}</table>
+    <p class="center">🔥 <b>${r.streak} gün</b> üst üste meydan okuma${r.streak >= 2 ? '!' : ''} · yarın yeni bir gün</p>
+    <div class="actions"><button class="btn primary block" data-act="chShare">📤 Skorunu paylaş</button></div>
+    <div class="actions"><button class="btn block" data-act="chRetry">🔁 Tekrar dene</button><button class="btn block" data-act="chHome">🏠 Ana oyun</button></div>`);
+}
+
+// ---- franchise ----
+export function showFranchise(offer = false) {
+  const ok = canFranchise();
+  const choices = ruleChoices();
+  showModal(`<div class="center"><div class="bigemoji">⭐</div><h2>${offer ? 'Markan büyüdü!' : 'Markanı franchise yap'}</h2>
+    <p>${offer ? 'Artık markanı franchise yapabilirsin. ' : ''}Para, şubeler ve eşyalar sıfırlanır. <b>Yıldızlar, yetenekler, başarımlar ve koleksiyon kalır.</b></p></div>
+    <div class="forecast">${starBreakdown().map(([k, v]) => `<div>${k}<b style="float:right">+${v} ⭐</b></div>`).join('')}
+      <div style="border-top:1px solid var(--line);padding-top:6px;margin-top:4px">Toplam<b style="float:right">+${franchiseStars()} ⭐</b></div></div>
+    <p><b>Yeni sezonun kuralını seç.</b> Zor kurallar, o sezonu bitirince fazladan yıldız kazandırır:</p>
+    <div class="rules">${choices.map(k => { const R = RULES[k]; return `<button class="rulecard" data-act="franchiseGo" data-arg="${k}" ${ok ? '' : 'disabled'}>
+      <span class="e">${R.icon}</span><span class="n">${R.name}</span><span class="d">${R.desc}</span><span class="tag ${R.bonus ? 'gold' : 'gray'}">${R.bonus ? `+${R.bonus} ⭐` : 'bonus yok'}</span></button>`; }).join('')}</div>
+    <div class="actions"><button class="btn block" data-act="closeModal">${offer ? 'Şimdi değil' : 'Vazgeç'}</button>${offer ? '<button class="btn primary block" data-act="seg" data-arg="more:marka">Yeteneklere bak</button>' : ''}</div>`);
 }

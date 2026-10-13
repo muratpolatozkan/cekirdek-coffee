@@ -1,6 +1,12 @@
 // Sürüm notları: oyuna güncellemeden sonra dönen oyuncuya "neler yeni" gösterilir.
 // Yeni sürümde en üste bir kayıt ekle ve v'yi bir artır.
 export const CHANGELOG = [
+  { v: 7, date: '13 Ekim 2026', title: 'Oyun artık bitmiyor!', items: [
+    '🏆 <b>Günün Meydan Okuması:</b> her gün herkes aynı mahalle, hava ve kuralla bir gün oynar. Skorunu arkadaşlarına gönder! (Daha → Meydan)',
+    '⭐ <b>Franchise yenilendi:</b> yıldızlarını kalıcı yeteneklere harca, her yeni sezona bir kural seç. Zor kural = fazladan yıldız. (Daha → Marka)',
+    '🏅 <b>44 başarım</b> ve <b>koleksiyon albümü:</b> içecekler, müşteri tipleri ve ünlü misafirler. (Daha → Koleksiyon)',
+    '💫 Eski franchise yıldızların korunuyor; artık onları yeteneklere harcayabilirsin.',
+  ] },
   { v: 6, date: '13 Ekim 2026', title: 'Yenilikler penceresi', items: [
     '📰 Oyun güncellenince burada neyin değiştiğini göreceksin. Eski notlar Daha → Ayarlar → Yenilikler’de.',
     '🔑 Kiralık tabelası artık kayıp gitmiyor, hep kiralık dükkanın vitrinindeki afişin üstünde duruyor.',

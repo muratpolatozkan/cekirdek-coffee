@@ -1,6 +1,6 @@
 // Fiyat, puan ve günün koşullarına (hava, olay, etkinlik) bağlı çarpanlar
 import { OPEN, DRINKS, BEANS, HOODS, WEATHER, PEVENTS, CATALOG, MILK_PACK, MILK_PACK_COST, TERRACE_FEE } from '../config.js';
-import { S, B, meta, seasonOf } from '../state.js';
+import { S, B, seasonOf, perk, ruleIs } from '../state.js';
 import { clamp } from '../utils.js';
 import { toast } from '../ui/toast.js';
 
@@ -13,8 +13,9 @@ export function rating(b = B()) {
 export const beanQ = () => BEANS[B().activeBean].q + (B().beans[B().activeBean].h > 0 ? 0.4 : 0);
 export const beanStock = (id = B().activeBean) => B().beans[id].r + B().beans[id].h;
 export const beanPrice = id => Math.max(1, Math.round(BEANS[id].cost * S.market[id] * 10) / 10);
-export const fairPrice = id => DRINKS[id].base * (1 + 0.15 * (beanQ() - 2.5)) * (0.65 + 0.1 * rating()) * (1 + 0.03 * meta.stars);
-export const cupCost = id => DRINKS[id].beans * beanPrice(B().activeBean) + DRINKS[id].milk * (MILK_PACK_COST / MILK_PACK) + (DRINKS[id].extra || 0);
+export const fairPrice = id => DRINKS[id].base * (1 + 0.15 * (beanQ() - 2.5)) * (0.65 + 0.1 * rating()) * (1 + 0.04 * perk('marka')) * (ruleIs('kriz') ? .8 : 1);
+export const cupCost = id => DRINKS[id].beans * beanPrice(B().activeBean) + DRINKS[id].milk * (milkPackCost() / MILK_PACK) + (DRINKS[id].extra || 0);
+export const milkPackCost = () => MILK_PACK_COST * (ruleIs('sut') ? 2 : 1);
 export const season = () => seasonOf(S.day);
 export const weatherNow = () => WEATHER[S.weather.today];
 export const hourNow = () => S.time / 60;
@@ -28,7 +29,7 @@ export const effPrice = id => Math.round(S.menu[id].price * (1 - (peventNow()?.d
 
 // caddeden geçen kişi sayısı çarpanı
 export function passMult(h) {
-  let m = weatherNow().pass * HOODS[B().hood].passMult * (1 + B().civic) * (1 + 0.05 * meta.stars) * (1 + 0.12 * S.ads);
+  let m = weatherNow().pass * HOODS[B().hood].passMult * (1 + B().civic) * (1 + 0.06 * perk('sohret')) * (ruleIs('turist') ? 1.4 : 1) * (1 + 0.12 * S.ads);
   if (eventIs('mac')) m *= h >= 17 && h < 19 ? 1.3 : h >= 19 ? 0.35 : 1;
   if (eventIs('festival')) m *= 1.7;
   if (S.buzz > 0) m *= 1.35;
@@ -62,7 +63,7 @@ export function spend(cost, kind = 'invest') {
   if (S.money < cost) { toast('Yeterli paran yok.'); return false; }
   S.money -= cost; B().today[kind] += cost; return true;
 }
-export const unitRent = (u, b = B()) => Math.round(HOODS[b.hood].units[u].rent * HOODS[b.hood].rentMult);
+export const unitRent = (u, b = B()) => Math.round(HOODS[b.hood].units[u].rent * HOODS[b.hood].rentMult * (ruleIs('kira') ? 1.5 : 1));
 export const unitDeposit = (u, b = B()) => Math.round((HOODS[b.hood].units[u].deposit || 0) * HOODS[b.hood].rentMult);
 export const rentOf = (b = B()) => b.units.reduce((a, st, u) => a + (st === 'own' ? unitRent(u, b) : 0), 0) + (b.terrace ? TERRACE_FEE : 0);
 export const wagesOf = (b = B()) => b.staff.reduce((a, s) => a + s.wage, 0);

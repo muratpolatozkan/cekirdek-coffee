@@ -1,6 +1,8 @@
 // Üst çubuk, alt sekme rozetleri ve geniş ekrandaki takip kutusu
 import { DRINKS, HOODS, EVENTS, PEVENTS, OPEN } from '../config.js';
-import { S, B, meta } from '../state.js';
+import { S, B, meta, CHALLENGE } from '../state.js';
+import { canFranchise } from '../sim/prestige.js';
+import { RULES } from '../sim/prestige.js';
 import { $, fmt, hhmm } from '../utils.js';
 import { rating, beanStock, season, weatherNow, unitDeposit } from '../sim/economy.js';
 import { hasItem, atmosphere, bars, ownMinU, ownMaxU } from '../sim/grid.js';
@@ -54,12 +56,13 @@ export function refreshUI() {
   badge('shop', lowBeans || lowMilk);
   badge('hood', isUnlocked('seg:hood:istek') ? b.quests.length : 0);
   const rentable = isUnlocked('expand') && [ownMinU - 1, ownMaxU + 1].some(u => b.units[u] === 'rent' && S.money >= unitDeposit(u));
-  badge('more', rentable);
+  badge('more', rentable || canFranchise());
   // şu anki hedef: önce bitmemiş günlük hedef, yoksa sıradaki büyük hedef
   const dg = S.daily?.goals.find(g => !g.done), big = GOALS.find(g => !S.goalsDone.includes(g.id)), gc = $('goalChip');
-  if (dg) { const v = dailyProgress(dg); gc.innerHTML = `🎯 ${dg.text} <b>${v}/${dg.target}</b><i style="width:${Math.round(v / dg.target * 100)}%"></i>`; }
+  if (CHALLENGE) { const R = RULES[S.rule]; gc.innerHTML = `🏆 Meydan okuma · ${R.icon} ${R.name}`; }
+  else if (dg) { const v = dailyProgress(dg); gc.innerHTML = `🎯 ${dg.text} <b>${v}/${dg.target}</b><i style="width:${Math.round(v / dg.target * 100)}%"></i>`; }
   else if (big) gc.innerHTML = `🏆 ${big.text} <b>+${fmt(big.reward)}</b>`;
-  gc.style.display = dg || big ? '' : 'none';
+  gc.style.display = CHALLENGE || dg || big ? '' : 'none';
   document.documentElement.style.setProperty('--top-h', $('topbar').offsetHeight + 'px');
   // geniş ekran takip kutusu
   const T = b.today, next = GOALS.filter(g => !S.goalsDone.includes(g.id)).slice(0, 3);

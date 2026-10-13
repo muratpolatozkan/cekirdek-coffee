@@ -1,4 +1,5 @@
 // Baristalar (sipariş, yorgunluk, mola), komiler ve aday üretimi
+import { collect, statUp } from './achievements.js';
 import { DRINKS, TYPES, NAMES, TRAITS, XP } from '../config.js';
 import { S, B } from '../state.js';
 import { scene } from '../engine/scene.js';
@@ -70,6 +71,7 @@ function finishOrder(bar) {
   t.revenue += c.price; t.tips += tip; t.foodRev += food; t.served++; S.served++; B().served++;
   S.sales[c.drinkId] = (S.sales[c.drinkId] || 0) + 1;
   S.typeCounts[c.type] = (S.typeCounts[c.type] || 0) + 1;
+  collect('drinks', c.drinkId); collect('types', c.type);
   floatText('+' + (c.price + tip + food) + ' ₺' + (c.food ? ' 🥐' : ''), c.headPos());
   flyCoin(c.headPos());
   coin();
@@ -77,7 +79,8 @@ function finishOrder(bar) {
   if (c.food) track('food');
   if (c.special === 'vip') {
     const fast = c.f.vip > 0;
-    if (fast) { addXP(XP.vip); S.money += Math.round(c.price * .5); B().today.tips += Math.round(c.price * .5); }
+    collect('vips', c.name);
+    if (fast) { statUp('vip'); addXP(XP.vip); S.money += Math.round(c.price * .5); B().today.tips += Math.round(c.price * .5); }
     note(fast ? `⭐ ${c.name} çok memnun kaldı! VIP bahşişi: +${Math.round(c.price * .5)} ₺` : `⭐ ${c.name} siparişini geç aldı, pek memnun değil.`, 4000);
   }
   b.fatigue = Math.min(100, b.fatigue + 1.4 * (b.trait === 'dayanikli' ? .6 : 1));

@@ -1,6 +1,6 @@
 // İlerleme: tecrübe puanı (XP), seviyeler ve açtıkları, günlük hedefler
 import { LEVELS, XP } from '../config.js';
-import { S } from '../state.js';
+import { S, perk } from '../state.js';
 import { fmt, pick } from '../utils.js';
 import { note } from '../ui/toast.js';
 import { confetti } from '../ui/overlay.js';
@@ -25,7 +25,11 @@ LEVELS.forEach((L, k) => L.unlocks.forEach(u => { unlockAt[u] = k + 1; }));
 export const unlockLevel = key => unlockAt[key] || 1;
 export const isUnlocked = key => level() >= unlockLevel(key);
 export const unlocksOf = l => (LEVELS[l - 1]?.unlocks) || [];
-export function addXP(n) { if (n > 0) S.xp += n; }
+export function addXP(n) {
+  if (!(n > 0)) return;
+  const extra = n * .25 * perk('tecrube');   // Tecrübe yeteneği: kesirli kısım şansla eklenir
+  S.xp += n + Math.floor(extra) + (Math.random() < extra % 1 ? 1 : 0);
+}
 
 // ---- günlük hedefler ----
 const POOL = [
@@ -48,7 +52,7 @@ export function track(metric, n = 1) {
   if (!S.daily) return;
   S.daily.m[metric] = (S.daily.m[metric] || 0) + n;
   for (const g of S.daily.goals) if (!g.done && g.m === metric && S.daily.m[metric] >= g.target) {
-    g.done = true; S.money += g.reward; addXP(XP.daily);
+    g.done = true; S.money += g.reward; addXP(XP.daily); if (S.stat) S.stat.goals = (S.stat.goals || 0) + 1;
     note(`🎯 Günlük hedef tamam: ${g.text} (+${fmt(g.reward)})`, 3500);
     confetti(24); coin();
   }

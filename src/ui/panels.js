@@ -9,13 +9,15 @@ import { refreshUI } from './hud.js';
 import { hideModal, getLastPhoto, showIntro, showExport } from './modal.js';
 import { takePhoto } from './photo.js';
 import { setMusic } from '../audio.js';
-import { rating, fairPrice, cupCost, beanPrice, machineCost, adsCost, trainCost, spend, unitRent, unitDeposit, rentOf, wagesOf, fairWage, netWorth, season } from '../sim/economy.js';
+import { rating, fairPrice, cupCost, beanPrice, machineCost, adsCost, trainCost, spend, unitRent, unitDeposit, rentOf, wagesOf, fairWage, netWorth, season, milkPackCost } from '../sim/economy.js';
 import { hasItem, atmosphere, atmPerUnit, ownMinU, ownMaxU, recomputeBounds, refreshVitrin, bars, ownedCountOf, allSeats } from '../sim/grid.js';
 import { assignBaristas, syncWorkers } from '../sim/staff.js';
 import { startDay } from '../sim/day.js';
 import { GOALS, questProblem, completeQuest } from '../sim/quests.js';
 import { rivalName, rivalShare } from '../sim/rival.js';
-import { canOpenBranch, availableHoods, openBranch, switchBranch, canFranchise, franchiseStars, franchise } from '../sim/branches.js';
+import { canOpenBranch, availableHoods, openBranch, switchBranch } from '../sim/branches.js';
+import { canFranchise, franchiseStars, branchCost } from '../sim/prestige.js';
+import { renderMeta, META_ACT } from './metaui.js';
 import { buildUnits, refreshMenuBoard, wallSlots } from '../world/units.js';
 import { setMode } from './input.js';
 import { isUnlocked, unlockLevel, levelProgress, levelTitle, unlocksOf, dailyProgress } from '../sim/progress.js';
@@ -27,13 +29,14 @@ import { setCamTarget, setZoom, camera } from '../engine/scene.js';
 import { showRentCard, showChangelog } from './modal.js';
 import { markSeen } from '../changelog.js';
 import { confetti } from './overlay.js';
+import { item, btn, buy, meter, stats } from './kit.js';
 
 const SHEETS = {
   build: { title: '🛠️ İnşa', segs: [['oturma', '🪑 Oturma'], ['ekipman', '☕ Ekipman'], ['dekor', '🪴 Dekor'], ['arac', '✋ Taşı / Sat']] },
   staff: { title: '👥 Ekip', segs: [['ekip', 'Ekibim'], ['aday', 'Adaylar']] },
   shop: { title: '☕ Dükkan', segs: [['menu', '📋 Menü'], ['stok', '📦 Stok'], ['gelistir', '⬆️ Geliştir'], ['atolye', '🧪 Atölye']] },
   hood: { title: '👋 Mahalle', segs: [['mudavim', 'Müdavimler'], ['istek', 'İstekler'], ['rakip', 'Rakip'], ['etkinlik', 'Etkinlik'], ['yorum', 'Yorumlar']] },
-  more: { title: '☰ Daha fazla', segs: [['cadde', '🏠 Genişlet'], ['dekor', '🎨 Dekor'], ['istatistik', '📊 İstatistik'], ['hedef', '🎯 Hedefler'], ['ayar', '⚙️ Ayarlar']] },
+  more: { title: '☰ Daha fazla', segs: [['cadde', '🏠 Genişlet'], ['dekor', '🎨 Dekor'], ['istatistik', '📊 İstatistik'], ['hedef', '🎯 Hedefler'], ['marka', '⭐ Marka'], ['album', '📖 Koleksiyon'], ['meydan', '🏆 Meydan'], ['ayar', '⚙️ Ayarlar']] },
 };
 export let sheet = null;
 const segOf = {};
@@ -44,15 +47,9 @@ const segKey = (sh, sg) => `seg:${sh}:${sg}`;
 const el = $('sheet'), bodyEl = $('sheetBody');
 
 // ---- küçük yapı taşları ----
-const item = ({ ic, t, s = '', ac = '', extra = '', col = false, dim = false }) =>
-  `<div class="item${col ? ' col' : ''}${dim ? ' dim' : ''}">${ic ? `<div class="ic">${ic}</div>` : ''}<div class="bd"><div class="t">${t}</div>${s ? `<div class="s">${s}</div>` : ''}${extra}</div>${ac ? `<div class="ac">${ac}</div>` : ''}</div>`;
-const btn = (act, arg, label, cls = '', disabled = false) => `<button class="btn sm ${cls}" data-act="${act}"${arg != null ? ` data-arg="${arg}"` : ''}${disabled ? ' disabled' : ''}>${label}</button>`;
-const buy = (act, arg, label, cost, cls = 'primary') => btn(act, arg, label, cls, S.money < cost);
-const meter = (v, cls = '') => `<div class="meter ${cls}"><i style="width:${clamp(v, 0, 100)}%"></i></div>`;
 const lvl = v => v > 70 ? 'bad' : v > 45 ? 'warn' : '';
 const stepper = (act, minus, plus, val) => `<div class="stepper"><button data-act="${act}" data-arg="${minus}">−</button><b>${val}</b><button data-act="${act}" data-arg="${plus}">+</button></div>`;
 const segctl = (act, opts, cur) => `<div class="segctl">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" data-act="${act}" data-arg="${v}">${l}</button>`).join('')}</div>`;
-const stats = arr => `<div class="stats">${arr.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>`;
 const traitTag = t => t ? ` <span class="tag gray">${TRAITS[t].icon} ${TRAITS[t].name}</span>` : '';
 const hhm = h => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round(h % 1 * 60)).padStart(2, '0')}`;
 
@@ -142,7 +139,7 @@ const R = {
       }
       if (roast) h += `<div class="sec">Kavurma profili</div>` + item({ ic: '🔥', t: 'Kendi kavurduğun çekirdek', s: 'Kahve tutkunları ve turistler açık, emekliler ve ofis çalışanları koyu kavrum sever.',
         extra: segctl('roast', Object.entries(ROASTS), b.roast) });
-      h += `<div class="sec">Süt ve yiyecek</div>` + item({ ic: '🥛', t: 'Süt', s: `Sütlü içecekler için · Stok: <b class="${b.milk < 10 ? 'bad' : ''}">${b.milk}</b>`, ac: buy('milk', null, `+${MILK_PACK} · ${fmt(MILK_PACK_COST)}`, MILK_PACK_COST) });
+      h += `<div class="sec">Süt ve yiyecek</div>` + item({ ic: '🥛', t: 'Süt', s: `Sütlü içecekler için · Stok: <b class="${b.milk < 10 ? 'bad' : ''}">${b.milk}</b>`, ac: buy('milk', null, `+${MILK_PACK} · ${fmt(milkPackCost())}`, milkPackCost()) });
       if (hasItem('vitrin')) h += item({ col: true, ic: '🥐', t: `Kruvasan · bugün ${b.croissant} adet`, s: 'Satılmayanlar gün sonunda çöpe gider. Her sabah otomatik sipariş:',
         ac: stepper('corder', '-2', '2', b.croissantOrder + ' adet') + buy('croissant', null, `+10 şimdi · ${fmt(10 * FOOD.cost)}`, 10 * FOOD.cost, '') });
       h += `<p class="note">${S.autoSupply ? '🚚 Otomatik tedarik açık: çekirdek ve süt azalınca %10 farkla kendiliğinden sipariş verilir.' : '🚚 Stok takibiyle uğraşmak istemezsen Geliştir sekmesinden otomatik tedarik al.'}</p>`;
@@ -210,6 +207,7 @@ const R = {
     return h;
   },
   more(sg) {
+    if (['marka', 'album', 'meydan'].includes(sg)) return renderMeta(sg);
     const b = B();
     if (sg === 'cadde') {
       const H = HOODS[b.hood];
@@ -240,11 +238,11 @@ const R = {
       if (!isUnlocked('branches')) h += `<p class="note">${lockTag('branches')}: yeni mahallelerde şube açabilirsin.</p>`;
       if (hoods.length) {
         h += `<div class="sec">Yeni şube</div>${canOpenBranch() ? '' : '<p class="note">Yeni şube için her şubende en az 3 dükkan olmalı.</p>'}`;
-        for (const hd of hoods) { const HH = HOODS[hd]; h += item({ dim: !canOpenBranch(), ic: HH.icon, t: HH.name, s: HH.desc, ac: btn('openBranch', hd, fmt(HH.open), 'primary', !canOpenBranch() || S.money < HH.open) }); }
+        for (const hd of hoods) { const HH = HOODS[hd]; h += item({ dim: !canOpenBranch(), ic: HH.icon, t: HH.name, s: HH.desc, ac: btn('openBranch', hd, fmt(branchCost(HH.open)), 'primary', !canOpenBranch() || S.money < branchCost(HH.open)) }); }
       }
-      h += `<div class="sec">Franchise</div>` + item({ col: true, ic: '⭐', t: `Franchise · ${meta.stars} yıldızın var`,
-        s: `Markanı satıp her şeyi sıfırlarsın, yıldızlar kalıcıdır. Her yıldız +1.000 ₺ başlangıç, +%5 yaya, +%3 adil fiyat. Şart: 3 şube ya da 100.000 ₺ servet. Servetin: <b>${fmt(netWorth())}</b>`,
-        ac: btn('franchise', null, canFranchise() ? `Franchise yap (+${franchiseStars()}⭐)` : 'Henüz olmaz', canFranchise() ? 'primary' : '', !canFranchise()) });
+      h += `<div class="sec">Marka</div>` + item({ ic: '⭐', t: canFranchise() ? `Franchise yapabilirsin! (+${franchiseStars()}⭐)` : 'Franchise',
+        s: canFranchise() ? 'Markanı büyüt, yıldız kazan, kalıcı yeteneklerle yeni bir sezona başla.' : 'Şart: 3 şube ya da 100.000 ₺ servet. Yıldızlar kalıcı yeteneklere harcanır.',
+        ac: btn('seg', 'more:marka', 'Marka', canFranchise() ? 'primary' : '') });
       return h;
     }
     if (sg === 'dekor') {
@@ -398,7 +396,7 @@ const ACT = {
   buyR(id) { if (spend(Math.round(beanPrice(id) * BAG), 'stock')) B().beans[id].r += BAG; },
   buyG(id) { if (spend(Math.round(beanPrice(id) * BAG * .55), 'stock')) B().beans[id].g += BAG; },
   roast(k) { B().roast = k; },
-  milk() { if (spend(MILK_PACK_COST, 'stock')) B().milk += MILK_PACK; },
+  milk() { if (spend(milkPackCost(), 'stock')) B().milk += MILK_PACK; },
   croissant() { if (spend(10 * FOOD.cost, 'stock')) { B().croissant += 10; refreshVitrin(); } },
   corder(d) { B().croissantOrder = clamp(B().croissantOrder + +d, 0, 60); },
   up(k) {
@@ -426,7 +424,6 @@ const ACT = {
   },
   switch(k) { closeSheet(); switchBranch(+k); },
   openBranch(h) { closeSheet(); openBranch(h); },
-  franchise() { if (canFranchise() && confirm(`Markanı franchise yapıp ${franchiseStars()} yıldızla baştan başlamak istiyor musun? Şubeler, para ve eşyalar sıfırlanır.`)) franchise(); },
   quest(id) { completeQuest(id); },
   pevent(arg) {
     const [id, tom] = arg.split(':'), E = PEVENTS[id];
@@ -490,6 +487,7 @@ const ACT = {
   },
   photo() { takePhoto(); },
 };
+Object.assign(ACT, META_ACT);
 function onAct(e) {
   const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return;
   holding = false;

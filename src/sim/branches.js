@@ -1,9 +1,10 @@
-// Şubeler (yeni mahalleler) ve franchise (kalıcı bonusla baştan başlama)
+// Şubeler (yeni mahalleler). Franchise döngüsü prestige.js'de.
 import { HOODS } from '../config.js';
-import { S, B, save, newBranch, meta, saveMeta, wipeSave } from '../state.js';
+import { S, B, save, newBranch } from '../state.js';
 import { avg } from '../utils.js';
 import { note } from '../ui/toast.js';
-import { spend, rentOf, wagesOf, netWorth } from './economy.js';
+import { spend, rentOf, wagesOf } from './economy.js';
+import { branchCost } from './prestige.js';
 import { ownedCountOf, clearItems, loadItems, recomputeBounds } from './grid.js';
 import { despawnAll } from './people.js';
 import { assignBaristas, syncWorkers, despawnWorkers, genCandidates } from './staff.js';
@@ -32,7 +33,7 @@ export function switchBranch(i) {
   note(`${HOODS[B().hood].icon} ${HOODS[B().hood].name} şubesine geçtin.`, 2500);
 }
 export function openBranch(hood) {
-  if (!canOpenBranch() || !availableHoods().includes(hood) || !spend(HOODS[hood].open)) return;
+  if (!canOpenBranch() || !availableHoods().includes(hood) || !spend(branchCost(HOODS[hood].open))) return;
   const b = newBranch(hood, false); b.age = 1;
   genRegulars(b); genCandidates(b);
   S.branches.push(b);
@@ -51,11 +52,4 @@ export function passiveIncome() {
     out.push({ name: HOODS[b.hood].name, icon: HOODS[b.hood].icon, net });
   });
   return out;
-}
-export const canFranchise = () => S.branches.length >= 3 || netWorth() >= 100000;
-export const franchiseStars = () => 1 + Math.floor(netWorth() / 150000);
-export function franchise() {
-  if (!canFranchise()) return;
-  meta.stars += franchiseStars(); meta.runs++; saveMeta();
-  wipeSave(); location.reload();
 }

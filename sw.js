@@ -1,12 +1,12 @@
 // Çevrimdışı oynanabilsin diye oyun dosyalarını önbelleğe alır.
 // Kendi dosyalarımız önce ağdan istenir (güncellemeler hemen gelsin), ağ yoksa önbellekten açılır.
 // CDN'deki sabit sürümlü Three.js önbellekten gelir.
-const CACHE = 'cekirdek-v9';
+const CACHE = 'cekirdek-v10';
 const SRC = ['main', 'changelog', 'config', 'utils', 'state', 'audio', 'quality',
   'engine/scene', 'engine/assets', 'engine/models', 'engine/fx', 'engine/perf',
   'world/street', 'world/units', 'world/weather',
-  'sim/grid', 'sim/economy', 'sim/people', 'sim/staff', 'sim/day', 'sim/regulars', 'sim/rival', 'sim/events', 'sim/quests', 'sim/branches', 'sim/progress', 'sim/offline', 'sim/customs', 'sim/expand',
-  'ui/toast', 'ui/overlay', 'ui/hud', 'ui/panels', 'ui/modal', 'ui/input', 'ui/minigame', 'ui/photo', 'ui/tutorial', 'ui/plots'].map(f => `./src/${f}.js`);
+  'sim/grid', 'sim/economy', 'sim/people', 'sim/staff', 'sim/day', 'sim/regulars', 'sim/rival', 'sim/events', 'sim/quests', 'sim/branches', 'sim/progress', 'sim/offline', 'sim/customs', 'sim/expand', 'sim/prestige', 'sim/achievements', 'sim/challenge',
+  'ui/toast', 'ui/overlay', 'ui/hud', 'ui/panels', 'ui/modal', 'ui/input', 'ui/minigame', 'ui/photo', 'ui/tutorial', 'ui/plots', 'ui/kit', 'ui/metaui'].map(f => `./src/${f}.js`);
 const ASSETS = ['./', './index.html', './styles.css', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', ...SRC,
   'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'];
 
