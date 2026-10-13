@@ -4,7 +4,7 @@ import { S, B, meta } from '../state.js';
 import { $, fmt, starStr, esc } from '../utils.js';
 import { CHANGELOG, seenVersion } from '../changelog.js';
 import { challengeInfo, keyLabel } from '../sim/challenge.js';
-import { RULES, ruleChoices, starBreakdown, franchiseStars, canFranchise } from '../sim/prestige.js';
+import { RULES, ruleChoices, starBreakdown, franchiseStars, canFranchise, royaltyTotal, royaltyOf, networkEntry, carryOf } from '../sim/prestige.js';
 import { rentBlock, rentChecks, unitDeposit, unitRent, isAdjacent } from '../sim/expand.js';
 
 export function showModal(html) { $('modalBox').innerHTML = html; $('modal').style.display = 'flex'; }
@@ -24,7 +24,8 @@ export function showReport() {
     ${row('🏠 Kira', neg(R.rent))}${row('👥 Maaşlar', neg(R.wages))}${row('📦 Stok alımları', neg(R.stock))}${R.fines ? row('🧾 Ceza', neg(R.fines)) : ''}
     ${row('Bu şubenin net kârı', `<span class="${R.net >= 0 ? 'good' : 'bad'}">${fmt(R.net)}</span>`, 'sum')}
     ${(R.others || []).map(o => row(`${o.icon} ${o.name} (uzaktan)`, `<span class="${o.net >= 0 ? 'good' : 'bad'}">${fmt(o.net)}</span>`)).join('')}
-    ${R.others?.length ? row('Toplam', `<span class="${R.net + othersNet >= 0 ? 'good' : 'bad'}">${fmt(R.net + othersNet)}</span>`, 'sum') : ''}</table>
+    ${R.royalty ? row('🤝 Franchise telifi', `<span class="good">${fmt(R.royalty)}</span>`) : ''}
+    ${R.others?.length || R.royalty ? row('Toplam', `<span class="${R.net + othersNet + (R.royalty || 0) >= 0 ? 'good' : 'bad'}">${fmt(R.net + othersNet + (R.royalty || 0))}</span>`, 'sum') : ''}</table>
     <ul><li>✅ ${R.served} müşteriye servis${R.avg ? ` · ortalama memnuniyet <span class="stars">${starStr(R.avg)}</span> ${R.avg.toFixed(1)}` : ''}</li>
     ${R.angry ? `<li>😠 ${R.angry} kişi bekleyip gitti</li>` : ''}${R.turned ? `<li>😕 ${R.turned} kişi kapıdan döndü (sıra doluydu)</li>` : ''}
     ${R.refused ? `<li>💸 ${R.refused} kişi fiyatı pahalı buldu</li>` : ''}${R.waste ? `<li>🗑️ ${R.waste} kruvasan çöpe gitti</li>` : ''}
@@ -41,7 +42,12 @@ export function showReport() {
 }
 export function showIntro() {
   showModal(`<h2>${S.brand.icon} Çekirdek Coffee</h2>
-    ${meta.stars ? `<p>⭐ <b>${meta.stars} franchise yıldızın</b> var: daha fazla başlangıç parası, daha kalabalık caddeler ve daha yüksek adil fiyat.</p>` : ''}
+    ${meta.runs ? `<div class="forecast"><b>⭐ ${meta.runs}. franchise sonrası yeni sezon!</b>
+      ${S.carryIn ? `<div>💼 Kurucu payın kasada: <b>${fmt(S.carryIn)}</b></div>` : ''}
+      ${royaltyTotal() ? `<div>🤝 Franchise ağın her gün <b>${fmt(royaltyTotal())}</b> telif ödeyecek</div>` : ''}
+      ${S.customs.length ? `<div>🧪 ${S.customs.length} imza tarifin menünde</div>` : ''}
+      ${meta.stars ? `<div>⭐ Harcanmamış <b>${meta.stars} yıldızın</b> var: Daha → Marka</div>` : ''}
+      ${S.rule ? `<div>${RULES[S.rule].icon} Sezon kuralı: <b>${RULES[S.rule].name}</b> · ${RULES[S.rule].desc}</div>` : ''}</div>` : ''}
     <p>Çınar Sokak’ta, Bakkal Hasan ile Kuaför Ahmet’in arasında küçük bir kahveci açtın. Hedefin, burayı mahallenin en sevilen 3. dalga kahvecisi yapmak.</p>
     <p>Kısa bir rehber sana ilk adımları gösterecek. Servis yaptıkça seviye atlayacak ve yeni özellikler açacaksın. ☕</p>
     <div class="actions"><button class="btn primary block" data-act="closeIntro">☕ Dükkanı aç</button></div>`);
@@ -140,9 +146,13 @@ export function showFranchise(offer = false) {
   const ok = canFranchise();
   const choices = ruleChoices();
   showModal(`<div class="center"><div class="bigemoji">⭐</div><h2>${offer ? 'Markan büyüdü!' : 'Markanı franchise yap'}</h2>
-    <p>${offer ? 'Artık markanı franchise yapabilirsin. ' : ''}Para, şubeler ve eşyalar sıfırlanır. <b>Yıldızlar, yetenekler, başarımlar ve koleksiyon kalır.</b></p></div>
-    <div class="forecast">${starBreakdown().map(([k, v]) => `<div>${k}<b style="float:right">+${v} ⭐</b></div>`).join('')}
-      <div style="border-top:1px solid var(--line);padding-top:6px;margin-top:4px">Toplam<b style="float:right">+${franchiseStars()} ⭐</b></div></div>
+    <p>${offer ? 'Artık markanı franchise yapabilirsin. ' : ''}Şubelerin franchise olarak çalışmaya devam eder, sen yeni bir sokakta sıfırdan, ama çok daha güçlü başlarsın.</p></div>
+    <div class="forecast"><b>Yanına aldıkların</b>
+      <div class="kv"><span>⭐ Yıldız (${starBreakdown().map(([k, v]) => `${k} ${v}`).join(' · ')})</span><b>+${franchiseStars()} ⭐</b></div>
+      <div class="kv"><span>🤝 Her gün franchise telifi, sonsuza dek</span><b>+${fmt(royaltyOf(networkEntry()))}/gün</b></div>
+      ${royaltyTotal() ? `<div style="color:var(--muted);font-size:12px">Önceki franchise’larınla toplam ${fmt(royaltyTotal() + royaltyOf(networkEntry()))}/gün</div>` : ''}
+      <div class="kv"><span>💼 Kurucu payı (kasanın %5’i)</span><b>+${fmt(carryOf())}</b></div>
+      <div>🏷️ Marka adın${S.customs.length ? ` ve ${S.customs.length} imza tarifin` : ''}, yeteneklerin, başarımların, koleksiyonun</div></div>
     <p><b>Yeni sezonun kuralını seç.</b> Zor kurallar, o sezonu bitirince fazladan yıldız kazandırır:</p>
     <div class="rules">${choices.map(k => { const R = RULES[k]; return `<button class="rulecard" data-act="franchiseGo" data-arg="${k}" ${ok ? '' : 'disabled'}>
       <span class="e">${R.icon}</span><span class="n">${R.name}</span><span class="d">${R.desc}</span><span class="tag ${R.bonus ? 'gold' : 'gray'}">${R.bonus ? `+${R.bonus} ⭐` : 'bonus yok'}</span></button>`; }).join('')}</div>

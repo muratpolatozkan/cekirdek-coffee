@@ -34,7 +34,7 @@ const TIPS = [
   { id: 'queue', when: () => bars().some(b => b.queue.length >= 3), t: 'Sıra uzadı! <b>Bara dokunarak</b> hızlandır. İleride ikinci bar ve barista ekleyebilirsin.', world: () => at(bars().find(b => b.queue.length >= 3)) },
   { id: 'angry', when: () => B().today.angry > 0, t: '😠 Bir müşteri beklemekten sıkılıp gitti. Bara dokunarak hızlandır, sıra kısa kalsın.' },
   { id: 'dirty2', when: () => dirtyItem(), t: '🧽 Masada bardak kaldı. <b>Dokunarak topla</b>, kirli masaya kimse oturmaz.', world: () => at(dirtyItem()) },
-  { id: 'select', when: () => items.length >= 4 && S.time > 11 * 60, t: '💡 Bir eşyaya <b>dokunursan</b> döndürebilir, taşıyabilir ya da satabilirsin.' },
+  { id: 'select', when: () => items.length >= 4 && S.time > 11 * 60, t: '💡 Eşyaları döndürmek, taşımak ya da satmak için <b>✏️ Düzenle</b>’ye dokun.', el: '#btnEdit' },
   { id: 'expand', when: () => rentableUnit() >= 0, t: '🔑 Yandaki dükkanı kiralayabilirsin! Üstündeki <b>Kiralık</b> tabelasına dokun.', world: () => unitCenter(rentableUnit()).setY(1.6) },
   { id: 'night', when: () => S.phase === 'closing', t: '🌙 Dükkan kapandı. Gün sonu raporunda kazancını ve yarının havasını göreceksin.' },
   { id: 'lv2', when: () => level() >= 2, t: '👥 <b>Ekip</b> açıldı! Buradan barista ya da masaları toplayan komi işe al.', el: '#tabbar [data-sheet=staff]' },

@@ -17,10 +17,12 @@ if (CHALLENGE) {
 }
 
 // sıfırlamadan ve franchise'tan sonra da kalanlar: yıldızlar, yetenekler, başarımlar, koleksiyon, meydan okuma skorları
-export const meta = { stars: 0, earned: 0, runs: 0, hardRuns: 0, perks: {}, ach: {}, album: {}, ch: {}, chStreak: 0, chLast: 0, nextRule: null };
+export const meta = { stars: 0, earned: 0, runs: 0, hardRuns: 0, perks: {}, ach: {}, album: {}, ch: {}, chStreak: 0, chLast: 0, nextRule: null, network: [], carry: 0, brand: null, customs: [] };
 try { Object.assign(meta, JSON.parse(localStorage.getItem(META_KEY) || '{}')); } catch (e) {}
 meta.album = { drinks: {}, types: {}, vips: {}, ...meta.album };
 meta.earned = Math.max(meta.earned || 0, meta.stars);
+// telif sistemi gelmeden önce yapılan franchise'lar da ağa eklenir (o markaların değerini bilmiyoruz, cömert bir tahmin)
+if (meta.runs && !meta.network.length) meta.network = Array.from({ length: meta.runs }, () => ({ name: 'Eski markan', icon: '☕', hoods: ['cinar'], branches: 3, worth: 300000, day: 0, rule: null, legacy: true }));
 export function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {} }
 // yıldızlarla alınan kalıcı yetenek seviyesi (meydan okumada herkes eşit: yetenek yok)
 export const perk = id => CHALLENGE ? 0 : (meta.perks[id] || 0);
@@ -64,7 +66,7 @@ export function newState() {
     marketPrev: Object.fromEntries(Object.keys(BEANS).map(k => [k, 1])),
     weather: { today: 'gunes', tomorrow: 'gunes' }, event: null, pevent: null, buzz: 0, dayLog: [],
     history: [], sales: {}, typeCounts: {}, perfectArts: 0, eventsHeld: 0,
-    brand: { name: 'ÇEKİRDEK', color: 'yesil', icon: '☕' },
+    brand: meta.brand && !CHALLENGE ? { ...meta.brand } : { name: 'ÇEKİRDEK', color: 'yesil', icon: '☕' },
     goalsDone: [], lastReport: null, sound: true, music: true, latteArt: true, introSeen: false, tipsShown: {},
     nextId: 2, activeBranch: 0, branches: [],
     xp: 0, levelSeen: 1, daily: null, tut: 0, customs: [], artStreak: 0, rush: null, lastSeen: Date.now(),
@@ -149,8 +151,12 @@ export function loadState() {
   const b = newBranch('cinar', true);
   if (perk('genis')) { const u = b.units.indexOf('rent'); if (u >= 0) b.units[u] = 'own'; }
   S.branches.push(b);
-  // franchise'ta seçilen sezon kuralı
-  S.rule = meta.nextRule || null; meta.nextRule = null; saveMeta();
+  // franchise'tan gelenler: sezon kuralı, kurucu payı, imza tarifler
+  S.rule = meta.nextRule || null; meta.nextRule = null;
+  S.carryIn = meta.carry || 0; S.money += S.carryIn; meta.carry = 0;
+  S.customs = (meta.customs || []).map(c => ({ ...c }));
+  S.nextId = Math.max(S.nextId, ...S.customs.map(c => +String(c.id).slice(1) + 1 || 0));
+  saveMeta();
   return true;
 }
 function writeSave(data) {

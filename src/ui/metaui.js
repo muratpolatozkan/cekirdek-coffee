@@ -6,7 +6,8 @@ import { item, btn, meter, stats } from './kit.js';
 import { toast, haptic } from './toast.js';
 import { confetti } from './overlay.js';
 import { netWorth } from '../sim/economy.js';
-import { PERKS, perkCost, buyPerk, canFranchise, franchiseStars, ruleNow, franchise } from '../sim/prestige.js';
+import { PERKS, perkCost, buyPerk, canFranchise, franchiseStars, ruleNow, franchise, RULES, royaltyOf, royaltyTotal } from '../sim/prestige.js';
+import { HOODS } from '../config.js';
 import { ACH, achCount, ACH_REWARD } from '../sim/achievements.js';
 import { challengeInfo, keyLabel, lastDays, shareText, share, playChallenge, leaveChallenge } from '../sim/challenge.js';
 import { showFranchise, getLastResult, hideModal, showModal } from './modal.js';
@@ -27,6 +28,12 @@ function marka() {
     h += item({ col: true, ic: '⭐', t: 'Franchise için şartlardan biri yeter', s: 'Para, şube ve eşyalar sıfırlanır; yıldızlar, yetenekler, başarımlar ve koleksiyon kalır.',
       extra: `<div class="mlabel"><span>🏙️ Şube</span><span>${S.branches.length} / 3</span></div>${meter(S.branches.length / 3 * 100)}
         <div class="mlabel"><span>💰 Servet</span><span>${fmt(nw)} / ${fmt(100000)}</span></div>${meter(nw / 1000)}` });
+  }
+  if (meta.network.length) {
+    h += `<div class="sec">🤝 Franchise ağın · günde ${fmt(royaltyTotal())}</div><p class="note">Bıraktığın markalar franchise olarak çalışmaya devam ediyor ve her gün sonunda sana telif ödüyor.</p>`;
+    h += meta.network.map((e, k) => item({ ic: e.icon, t: `${k + 1}. sezon · ${e.name}`,
+      s: e.legacy ? 'Telif sisteminden önceki franchise’ın' : `${e.hoods.map(x => HOODS[x]?.icon || '').join('')} ${e.branches} şube · ${e.day}. gün · ${fmt(e.worth)} servet${e.rule ? ` · ${RULES[e.rule].icon}` : ''}`,
+      ac: `<b class="good">+${fmt(royaltyOf(e))}</b>` })).join('');
   }
   h += '<div class="sec">Yetenekler</div><p class="note">Yıldızlarla alınır ve sonsuza dek kalır. “Yeni oyunda” yazanlar bir sonraki franchise sonrası işe yarar.</p>';
   for (const [id, P] of Object.entries(PERKS)) {

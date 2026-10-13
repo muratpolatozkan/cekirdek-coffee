@@ -1,6 +1,13 @@
 // Sürüm notları: oyuna güncellemeden sonra dönen oyuncuya "neler yeni" gösterilir.
 // Yeni sürümde en üste bir kayıt ekle ve v'yi bir artır.
 export const CHANGELOG = [
+  { v: 8, date: '13 Ekim 2026', title: 'Düzenle modu ve daha cömert franchise', items: [
+    '✏️ Eşyaya dokunmak artık taşı/sat menüsünü açmıyor; bara dokunup hızlandırmak ve masa toplamak kesintisiz. Eşyaları düzenlemek için sağdaki <b>Düzenle</b> düğmesi var.',
+    '🤝 <b>Franchise telifi:</b> bıraktığın markalar çalışmaya devam ediyor ve her gün sana telif ödüyor, sonsuza dek.',
+    '💼 Franchise yaparken kasanın %5’i (en fazla 20.000 ₺) <b>kurucu payı</b> olarak yeni sezona geliyor.',
+    '🏷️ Marka adın, logon ve imza tariflerin yeni sezona seninle geliyor.',
+    '🎁 Daha önce franchise yaptıysan o markalar da ağına eklendi; telifin hemen başlıyor.',
+  ] },
   { v: 7, date: '13 Ekim 2026', title: 'Oyun artık bitmiyor!', items: [
     '🏆 <b>Günün Meydan Okuması:</b> her gün herkes aynı mahalle, hava ve kuralla bir gün oynar. Skorunu arkadaşlarına gönder! (Daha → Meydan)',
     '⭐ <b>Franchise yenilendi:</b> yıldızlarını kalıcı yeteneklere harca, her yeni sezona bir kural seç. Zor kural = fazladan yıldız. (Daha → Marka)',

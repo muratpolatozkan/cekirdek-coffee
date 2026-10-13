@@ -47,9 +47,17 @@ export function starBreakdown() {
   return parts.filter(p => p[1] > 0);
 }
 export const franchiseStars = () => starBreakdown().reduce((a, p) => a + p[1], 0);
+// franchise ağı: bıraktığın her marka sonraki sezonlarda her gün telif öder
+export const royaltyOf = e => Math.round((80 * e.branches + e.worth * .0015) / 10) * 10;
+export const royaltyTotal = () => CHALLENGE ? 0 : meta.network.reduce((a, e) => a + royaltyOf(e), 0);
+// kasadan yeni sezona götürdüğün kurucu payı
+export const carryOf = () => Math.min(20000, Math.round(Math.max(0, S.money) * .05 / 100) * 100);
+export const networkEntry = () => ({ name: S.brand.name, icon: S.brand.icon, hoods: S.branches.map(b => b.hood), branches: S.branches.length, worth: netWorth(), day: S.day, rule: S.rule });
 export function franchise(nextRule) {
   if (!canFranchise()) return;
   const n = franchiseStars();
+  meta.network.push(networkEntry()); meta.carry = carryOf();
+  meta.brand = { ...S.brand }; meta.customs = S.customs.map(c => ({ ...c }));
   meta.stars += n; meta.earned += n; meta.runs++;
   if ((ruleNow()?.bonus || 0) >= 2) meta.hardRuns++;
   meta.nextRule = nextRule && nextRule !== 'normal' ? nextRule : null;

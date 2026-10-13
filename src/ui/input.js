@@ -11,7 +11,7 @@ import { toast, haptic } from './toast.js';
 import { floatText } from './overlay.js';
 import { refreshUI } from './hud.js';
 import { takePhoto } from './photo.js';
-import { inBounds, itemAt, tileCenter, frontTile, addItem, removeItem, bars, placeProblem, ownX0, ownX1, ownedCount, cleanItem } from '../sim/grid.js';
+import { inBounds, itemAt, tileCenter, frontTile, addItem, removeItem, bars, placeProblem, ownX0, ownX1, ownedCount, cleanItem, items } from '../sim/grid.js';
 import { assignBaristas, helpBar } from '../sim/staff.js';
 import { track } from '../sim/progress.js';
 import { spend } from '../sim/economy.js';
@@ -34,7 +34,7 @@ function rebuildGrid() {
   for (let j = 0; j <= d; j++) pts.push(x0, 0.008, j, x1, 0.008, j);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
   gridLines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x5a4030, transparent: true, opacity: .28 }));
-  gridLines.visible = mode === 'build' || mode === 'sell' || mode === 'move'; scene.add(gridLines);
+  gridLines.visible = mode !== 'none'; scene.add(gridLines);
 }
 // dükkanı ekrana sığdır (yerleştirirken kareler rahat seçilsin)
 function focusShop() {
@@ -52,8 +52,13 @@ function findSpot(type, r) {
   return tiles.find(t => !placeProblem(type, t.i, t.j, r)) || null;
 }
 
+// düzenleme oturumu: ✏️ Düzenle açıkken eşyaya dokunmak seçer; taşı/sat bitince düzenlemeye dönülür
+let editing = false, editWasOn = false;
+const back = () => editing ? 'edit' : 'none';
 export function setMode(m, type) {
   if (moving && !(m === 'build' && type === moving.type)) { addItem(moving); assignBaristas(); moving = null; }
+  if (m === 'edit') editing = true;
+  if (m === 'none') editing = false;
   mode = m; buildType = m === 'build' ? type : null; sel = null; sellArmed = false;
   if (m !== 'select') selItem = null;
   if (m === 'none') moveFromTool = false;
@@ -66,8 +71,9 @@ export function setMode(m, type) {
     focusShop();
     sel = moving ? { i: moving.i, j: moving.j } : findSpot(type, buildRot);
   }
-  if (m === 'sell' || m === 'move') focusShop();
+  if (m === 'sell' || m === 'move' || (m === 'edit' && !editWasOn)) focusShop();
   bar.classList.toggle('show', m !== 'none');
+  editWasOn = editing; $('btnEdit').classList.toggle('on', editing);
   updateHover(); refreshUI();
 }
 export function selectItem(it) {
@@ -87,6 +93,7 @@ function updateBar() {
   let title = '', msg = '', bad = false, ok = false, okLabel = '✓';
   show('abRot', mode === 'build' || mode === 'select'); show('abMove', mode === 'select'); show('abSell', mode === 'select');
   show('abOk', mode === 'build' || mode === 'sell');
+  $('abCancel').textContent = mode === 'select' || (mode === 'build' && moving && editing) ? '←' : '✕';
   if (mode === 'build') {
     const d = CATALOG[buildType];
     title = moving ? `✋ ${d.icon} ${d.name} taşınıyor` : `${d.icon} ${d.name} · ${fmt(d.price)}`;
@@ -108,6 +115,8 @@ function updateBar() {
     if (it) { msg = `${CATALOG[it.type].icon} ${CATALOG[it.type].name} · +${fmt(refund(it))}`; ok = true; }
     else msg = IS_TOUCH ? 'Satmak istediğin eşyaya dokun' : 'Satmak istediğin eşyaya tıkla';
     okLabel = '✓ Sat';
+  } else if (mode === 'edit') {
+    title = '✏️ Düzenleme'; msg = IS_TOUCH ? 'Bir eşyaya dokun: döndür, taşı ya da sat' : 'Bir eşyaya tıkla: döndür, taşı ya da sat';
   } else if (mode === 'move') {
     title = '✋ Taşı'; msg = IS_TOUCH ? 'Taşımak istediğin eşyaya dokun' : 'Taşımak istediğin eşyaya tıkla';
   }
@@ -124,7 +133,7 @@ export function updateHover() {
   hover = lastPointer ? tileFromEvent(lastPointer) : null;
   hl.visible = frontHl.visible = false;
   if (ghost) ghost.visible = false;
-  renderer.domElement.style.cursor = hover && (mode === 'none' || mode === 'select') && itemAt(hover.i, hover.j) ? 'pointer' : 'default';
+  renderer.domElement.style.cursor = hover && mode !== 'build' && itemAt(hover.i, hover.j) ? 'pointer' : 'default';
   const t = target();
   if (t && mode !== 'none') {
     hl.visible = true; hl.position.x = t.i + 0.5; hl.position.z = t.j + 0.5;
@@ -154,7 +163,7 @@ function confirmAt(t) {
     if (moving) {
       addItem({ type: buildType, i: t.i, j: t.j, r: buildRot }); moving = null; assignBaristas(); save();
       floatText('✓', tileCenter(t.i, t.j).setY(0.8));
-      setMode(moveFromTool ? 'move' : 'none'); return;
+      setMode(moveFromTool ? 'move' : back()); return;
     }
     spend(def.price);
     addItem({ type: buildType, i: t.i, j: t.j, r: buildRot });
@@ -192,11 +201,16 @@ function pickUp(it, fromTool = false) {
 function onTap(e) {
   const t = tileFromEvent(e), it = t && itemAt(t.i, t.j);
   if (sheet && mode === 'none') { closeSheet(); return; }
-  if (mode === 'none' || mode === 'select') {
-    if (!it) { if (mode === 'select') setMode('none'); return; }
-    if (it.type === 'bar' && it.cur && helpBar(it)) { haptic(6); return; }      // barı hızlandır
-    if (it.seats?.some(s => s.dirty) && cleanItem(it)) { haptic(8); track('cleans'); return; }   // masayı topla
-    if (mode === 'select' && selItem === it) { setMode('none'); return; }
+  // normalde dokunmak sadece oyun içindir: barı hızlandır, masayı topla
+  if (mode === 'none') {
+    if (!it) return;
+    if (it.type === 'bar' && it.cur && helpBar(it)) { haptic(6); return; }
+    if (it.seats?.some(s => s.dirty) && cleanItem(it)) { haptic(8); track('cleans'); return; }
+    if (!S.tipsShown.editHint && items.length >= 4) { S.tipsShown.editHint = true; toast('✏️ Eşyaları döndürmek, taşımak ya da satmak için sağdaki Düzenle’ye dokun.', 4000); }
+    return;
+  }
+  if (mode === 'edit' || mode === 'select') {
+    if (!it || (mode === 'select' && selItem === it)) { setMode('edit'); return; }
     selectItem(it);
     return;
   }
@@ -216,9 +230,13 @@ $('abMove').onclick = () => { if (selItem) pickUp(selItem); };
 $('abSell').onclick = () => {
   if (!selItem) return;
   if (!sellArmed) { sellArmed = true; haptic(10); updateBar(); return; }
-  const it = selItem; setMode('none'); sellItem(it);
+  const it = selItem; setMode(back()); sellItem(it);
 };
-$('abCancel').onclick = () => { const wasNew = mode === 'build' && !moving; setMode('none'); if (wasNew && IS_TOUCH) openSheet('build'); };
+$('abCancel').onclick = () => {
+  if (mode === 'select' || (mode === 'build' && moving && editing)) return setMode('edit');
+  const wasNew = mode === 'build' && !moving; setMode('none'); if (wasNew && IS_TOUCH) openSheet('build');
+};
+$('btnEdit').onclick = () => { closeSheet(); setMode(mode === 'none' ? 'edit' : 'none'); };
 
 // ---- dokunma: sürükle (kamera ya da hayalet eşya), basılı tut (eşyayı seç), iki parmak (yakınlaştır) ----
 const cvs = renderer.domElement;
@@ -237,8 +255,8 @@ cvs.addEventListener('pointerdown', e => {
   // hayalet eşyanın üstünden başlayan sürükleme eşyayı taşır, başka yerden başlayan kamerayı kaydırır
   const onGhost = mode === 'build' && t && sel && Math.abs(t.i - sel.i) <= 1 && Math.abs(t.j - sel.j) <= 1;
   drag = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false, ghost: onGhost, held: false };
-  // basılı tutunca eşyayı seç
-  if ((mode === 'none' || mode === 'select') && t && itemAt(t.i, t.j)) {
+  // düzenlemedeyken basılı tutunca da seç
+  if ((mode === 'edit' || mode === 'select') && t && itemAt(t.i, t.j)) {
     holdTimer = setTimeout(() => { if (drag && !drag.moved) { drag.held = true; closeSheet(); selectItem(itemAt(t.i, t.j)); } }, 420);
   }
 });
@@ -271,11 +289,12 @@ cvs.addEventListener('wheel', e => { e.preventDefault(); setZoom(camera.zoom * (
 export function initInput({ setSpeed, getSpeed }) {
   addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 'Escape') { if (mode !== 'none') setMode('none'); else closeSheet(); }
+    if (e.key === 'Escape') { if (mode === 'select') setMode('edit'); else if (mode !== 'none') setMode('none'); else closeSheet(); }
     else if (e.key === 'r' || e.key === 'R') { if (mode === 'select') rotateSelected(); else { buildRot = (buildRot + 1) % 4; updateHover(); } }
     else if (e.key === 's' || e.key === 'S') setMode(mode === 'sell' ? 'none' : 'sell');
     else if (e.key === 'm' || e.key === 'M') { if (mode === 'select' && selItem) pickUp(selItem); else setMode(mode === 'move' ? 'none' : 'move'); }
     else if (e.key === 'p' || e.key === 'P') takePhoto();
+    else if (e.key === 'e' || e.key === 'E') setMode(mode === 'none' ? 'edit' : 'none');
     else if (e.key === 'Enter' && (mode === 'build' || mode === 'sell')) confirmAt(target());
     else if (e.key === ' ') { e.preventDefault(); setSpeed(getSpeed() ? 0 : 1); }
     else if (/^[1-9]$/.test(e.key)) { const t = Object.keys(CATALOG)[+e.key - 1]; if (t) { closeSheet(); setMode(mode === 'build' && buildType === t ? 'none' : 'build', t); } }

@@ -65,7 +65,7 @@ const R = {
     if (sg === 'arac') return top + `<div class="grid">
       <button class="tile tool" data-act="tool" data-arg="move"><span class="e">✋</span><span class="n">Taşı</span><span class="p">ücretsiz</span></button>
       <button class="tile tool" data-act="tool" data-arg="sell"><span class="e">💸</span><span class="n">Sat</span><span class="p">%50 iade</span></button></div>
-      <p class="note" style="margin-top:10px">💡 Daha kolayı: haritada bir eşyaya <b>dokun</b>, altta ↻ Döndür · ✋ Taşı · 💸 Sat butonları çıkar.</p>`;
+      <p class="note" style="margin-top:10px">💡 Daha kolayı: sağdaki <b>✏️ Düzenle</b>’ye dokun, sonra bir eşyaya dokun: ↻ Döndür · ✋ Taşı · 💸 Sat.</p>`;
     const [types, tip] = BUILD_CATS[sg], se = season().id;
     return top + `<div class="grid">${types.filter(t => !CATALOG[t].season || CATALOG[t].season === se).map(t => {
       const d = CATALOG[t], lvlLock = !isUnlocked('item:' + t), locked = lvlLock || (d.terraceOnly && !B().terrace);
@@ -296,7 +296,7 @@ const R = {
       + item({ ic: '🎨', t: 'Latte art mini oyunu', s: 'Sütlü siparişlerde 🎨 butonu çıksın', ac: tgl('art', S.latteArt, ['Açık', 'Kapalı']) })
       + item({ ic: '❓', t: 'Nasıl oynanır', s: 'Başlangıç rehberini tekrar göster', ac: btn('help', null, 'Göster') })
       + item({ ic: '📰', t: 'Yenilikler', s: 'Son güncellemelerde neler değişti', ac: btn('changelog', null, 'Göster') })
-      + item({ ic: '⌨️', t: 'Kısayollar', s: 'Bilgisayarda: R döndür · Esc bitir · S sat · M taşı · 1–9 eşya · P fotoğraf · Boşluk duraklat. Telefonda: tek parmakla kaydır, iki parmakla yakınlaştır.' })
+      + item({ ic: '⌨️', t: 'Kısayollar', s: 'Bilgisayarda: E düzenle · R döndür · Esc bitir · S sat · M taşı · 1–9 eşya · P fotoğraf · Boşluk duraklat. Telefonda: tek parmakla kaydır, iki parmakla yakınlaştır.' })
       + `<div class="sec">Kayıt ve yedekler</div>`
       + item({ col: true, ic: '💾', t: 'Kaydını taşı', s: 'Kayıt bu tarayıcıda tutulur. iPhone’da ana ekrana eklenen uygulama ile Safari ayrı kayıt tutar; ilerlemeni birinden diğerine bu kodla taşıyabilirsin.',
           ac: btn('exportSave', null, '📤 Dışa aktar') + btn('importSave', null, '📥 İçe aktar') })

@@ -18,6 +18,7 @@ import { buildUnits } from '../world/units.js';
 import { applyWeather } from '../world/weather.js';
 import { showReport, hideModal, showChallengeResult } from '../ui/modal.js';
 import { finishChallenge } from './challenge.js';
+import { royaltyTotal } from './prestige.js';
 import { closeAllArt } from '../ui/minigame.js';
 
 const warned = {};
@@ -96,6 +97,7 @@ export function endDay() {
   const net = income - rent - wages - T.stock - T.fines;
   b.histNet.push(net); if (b.histNet.length > 7) b.histNet.shift();
   const others = passiveIncome();
+  const royalty = royaltyTotal(); S.money += royalty;
   // personel morali: adil maaş ve yorgunluk; morali çok düşen istifa edebilir
   const quits = [];
   for (const s of [...b.staff]) {
@@ -106,13 +108,13 @@ export function endDay() {
   if (quits.length) { assignBaristas(); syncWorkers(); }
   const todays = b.reviews.filter(r => r.day === S.day);
   updateMarket();
-  S.history.push({ day: S.day, income, net: net + others.reduce((a, o) => a + o.net, 0), served: T.served, rating: +rating().toFixed(2), weather: S.weather.today });
+  S.history.push({ day: S.day, income, net: net + royalty + others.reduce((a, o) => a + o.net, 0), served: T.served, rating: +rating().toFixed(2), weather: S.weather.today });
   if (S.history.length > 60) S.history.shift();
   S.lastReport = {
     day: S.day, hood: b.hood, income, revenue: T.revenue, foodRev: T.foodRev, tips: T.tips, gifts: T.gifts, fines: T.fines,
     rent, wages, stock: T.stock, invest: T.invest, waste, net, served: T.served, angry: T.angry, turned: T.turned, refused: T.refused,
     avg: avg(T.sats), best: todays.slice().sort((a, c) => c.stars - a.stars)[0] || null, worst: todays.slice().sort((a, c) => a.stars - c.stars)[0] || null,
-    others, quits, log: [...(S.dayLog || [])], weather: S.weather.today, tomorrow: S.weather.tomorrow, tomorrowSeason: seasonOf(S.day + 1).id,
+    others, royalty, quits, log: [...(S.dayLog || [])], weather: S.weather.today, tomorrow: S.weather.tomorrow, tomorrowSeason: seasonOf(S.day + 1).id,
     rivalShare: b.rival.active ? b.rival.share : null,
   };
   S.phase = 'report';
