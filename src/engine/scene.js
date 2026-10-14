@@ -16,6 +16,8 @@ export const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xefe7dc);
 
 export const CAM_OFFSET = new THREE.Vector3(30, 30, 30);    // (1,1,1) yönü = gerçek izometrik
+// dikey ekranda kamera daha yukarıdan bakar: dükkan ekranın boyunu daha iyi doldurur, cadde daha az yer kaplar
+const ISO_Y = 30, PORTRAIT_Y = 48;
 export const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 300);
 export let camTarget = V(UW * 1.5, UD / 2 + 1);
 export function setCamTarget(t) {
@@ -28,6 +30,8 @@ camera.zoom = 1.25;
 
 export function resizeRenderer() {
   const a = innerWidth / innerHeight, halfH = Math.max(6.2, 5.6 / a);
+  const y = a < 0.8 ? PORTRAIT_Y : ISO_Y;
+  if (CAM_OFFSET.y !== y) { CAM_OFFSET.y = y; setCamTarget(camTarget.clone()); }
   camera.left = -halfH * a; camera.right = halfH * a; camera.top = halfH; camera.bottom = -halfH;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);

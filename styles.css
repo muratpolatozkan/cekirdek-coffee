@@ -343,3 +343,20 @@ body.coach-on #toasts { top: calc(var(--top-h, 110px) + 150px); }
 .kv { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 3px 0; }
 .kv b { white-space: nowrap; }
 .linkbtn { background: none; border: 0; padding: 4px 0 0; font: inherit; font-size: 11.5px; color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+/* ---------- telefon: hedef kartı ve rehber altta, başparmağa yakın ---------- */
+.fab.coach-target { position: fixed; }
+@media (max-width: 899px) {
+  #goalRow { position: fixed; left: 10px; right: 68px; bottom: calc(var(--tabbar-h) + var(--safe-b) + 10px); }
+  body:has(#actionbar.show) #goalRow { visibility: hidden; }
+}
+@media (max-width: 899px) and (orientation: portrait) {
+  /* rehber kutusu alt çubuğun üstünde; açıkken sağdaki düğmeler ve hedef kartı (gösterilmiyorsa) gizlenir */
+  #coach { top: auto; bottom: calc(var(--tabbar-h) + var(--safe-b) + 56px); }
+  body.coach-on .fab:not(.coach-target), body.coach-on #goalRow:not(:has(.coach-target)) { visibility: hidden; }
+  body:has(#goalChip.coach-target) #coach { bottom: calc(var(--tabbar-h) + var(--safe-b) + 108px); }
+  body:has(#actionbar.show) #coach { bottom: calc(var(--tabbar-h) + var(--safe-b) + 128px); }
+  body:has(#sheet.open) #coach, body:has(.fab.coach-target) #coach { top: calc(var(--top-h, 110px) + 8px); bottom: auto; }
+  body.coach-on #toasts { top: calc(var(--top-h, 110px) + 8px); }
+  body.coach-on:has(#sheet.open) #toasts, body.coach-on:has(.fab.coach-target) #toasts { top: calc(var(--top-h, 110px) + 150px); }
+}

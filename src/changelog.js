@@ -1,6 +1,11 @@
 // Sürüm notları: oyuna güncellemeden sonra dönen oyuncuya "neler yeni" gösterilir.
 // Yeni sürümde en üste bir kayıt ekle ve v'yi bir artır.
 export const CHANGELOG = [
+  { v: 10, date: '14 Ekim 2026', title: 'Telefonda daha ferah ekran', items: [
+    '📱 Dik tutulan telefonda kamera dükkana biraz daha yukarıdan bakıyor: dükkanın ekranı dolduruyor, cadde daha az yer kaplıyor.',
+    '🎯 Günün hedefi artık ekranın altında, başparmağının yanında. Üst çubuk iki satıra indi.',
+    '🧭 Rehber ve ipuçları dükkanın önünü kapatmıyor, ekranın altında çıkıyor.',
+  ] },
   { v: 9, date: '13 Ekim 2026', title: 'Şubeye özel fiyat', items: [
     '📍 Menü bütün şubelerde ortak kalıyor ama artık her şubenin kendi <b>fiyat ayarı</b> var (−%30 ile +%50 arası). Kampüs’te indirim yap, Moda’da ve Plaza’da fiyatı artır!',
     '🚫 İstemediğin bir içeceği sadece o şubede kapatabilirsin.',

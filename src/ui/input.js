@@ -40,7 +40,8 @@ function rebuildGrid() {
 function focusShop() {
   const x0 = ownX0(), x1 = ownX1();
   setCamTarget(V((x0 + x1) / 2, UD / 2 + 0.7));
-  const n = ownedCount(), want = IS_TOUCH ? (n === 1 ? 1.75 : n === 2 ? 1.2 : 0.9) : (n === 1 ? 1.6 : n === 2 ? 1.2 : 0.95);
+  const n = ownedCount(), portrait = innerWidth < innerHeight * 0.8;   // dikeyde genişlik dar: dükkan kenardan taşmasın
+  const want = IS_TOUCH ? (n === 1 ? (portrait ? 1.5 : 1.75) : n === 2 ? (portrait ? 1.05 : 1.2) : 0.9) : (n === 1 ? 1.6 : n === 2 ? 1.2 : 0.95);
   if (camera.zoom < want) setZoom(want);
 }
 // ekranın ortasına en yakın uygun kare
